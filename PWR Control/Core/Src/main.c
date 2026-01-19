@@ -70,6 +70,7 @@ void SystemClock_Config(void);
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
    
   /* USER CODE END 1 */
@@ -101,8 +102,12 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_Delay(100);
   goHome(0x03);
-  while (1)
+  
+	/*
+	while (1)
   {
+		
+		
     uint8_t result = readGoHomeFinishAck();
 
     if (result == 1) {
@@ -110,17 +115,24 @@ int main(void)
     }
     HAL_Delay(10);
   }
+	*/
+		
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		HAL_Delay(1000);
+		// HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, 1);
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_13);
+		
+		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    hall_status_check();
-    lasers_shutdown();
+    // hall_status_check();
+    // lasers_shutdown();
   }
   /* USER CODE END 3 */
 }
@@ -148,6 +160,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -189,8 +202,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -206,5 +218,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
