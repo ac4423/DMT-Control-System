@@ -21,6 +21,7 @@
 #include "main.h"
 #include "tim.h"
 #include "usart.h"
+#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -30,6 +31,12 @@
 #include "mks42d.h"
 #include "flowmeter.h"
 #include "injection_pump.h"
+#include "usbd_cdc_if.h"
+
+#define TIM6_TICK_MS       0.1f     // 10kHz timer ? 0.1ms per tick
+#define FLOW_WINDOW_TICKS 1000     // 100 ms window (1000 × 0.1ms)
+#define SERIAL_SEND_TICKS 10000    // 1 second serial rate
+
 
 /* USER CODE END Includes */
 
@@ -57,6 +64,11 @@ uint32_t timer_cnt_test = 0;
 
 volatile uint32_t tim6_tick = 0;
 volatile bool flow_update_flag = false;
+
+#define FLOW_WINDOW_MS   100     // averaging window for instantaneous flow
+#define SERIAL_SEND_MS  1000     // how often to send serial data
+
+static uint32_t serial_timer = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -105,6 +117,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_TIM4_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim6); // start timer6-driven highest level/main function actions.
   HAL_Delay(100);
@@ -117,7 +130,6 @@ int main(void)
 	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); // timer for powering LED (debugging)
 	FlowMeter_Init();
 	InjectionPump_Init();
-
 	
 	// uint32_t last_update = HAL_GetTick();
 	
@@ -131,38 +143,32 @@ int main(void)
 			if (flow_update_flag)
 			{
 					flow_update_flag = false;
+					FlowMeter_Update(FLOW_WINDOW_TICKS * TIM6_TICK_MS);
+			}
 
-					FlowMeter_Update(100);  // 100 ms window
+
+			// Send serial at independent rate
+			if (serial_timer >= SERIAL_SEND_MS)
+			{
+					serial_timer = 0;
 
 					float flow = FlowMeter_GetFlow_Lmin();
+					float volume = FlowMeter_GetTotalLitres();
 
-					if (flow < 0.3f) flow = 0.3f;
-					if (flow > 6.0f) flow = 6.0f;
+					char msg[96];
+					int len = snprintf(msg, sizeof(msg),
+							"Flow: %.3f L/min | Volume: %.4f L\r\n",
+							flow, volume);
 
-					duty_LED = (uint32_t)(((flow - 0.3f) / (6.0f - 0.3f)) * 49.0f);
-					if (duty_LED > 49) duty_LED = 49;
-					if (duty_LED < 0) duty_LED = 0;
+					CDC_Transmit_FS((uint8_t*)msg, len);
+					
+					duty_LED = (uint32_t)((flow)/(6.0)*50-1);
 			}
 
 			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_pump);
 			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, duty_LED);
-			
-//			// example of functionality:
-//			
-//			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, duty_LED);
-
-//			duty_LED += dir;
-//			
-//			if (duty_LED >= 49) {
-//				dir = -1;
-//			}
-//			
-//			else if (duty_LED <= 0) {
-//				dir = 1;
-//			}
-
-//			HAL_Delay(20);
 	}
+
 
   /* USER CODE END 2 */
 
@@ -193,6 +199,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -203,7 +210,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -218,7 +225,13 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -241,17 +254,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
         tim6_tick++;
 
-        // 100ms = 1000 ticks at 10kHz
-        if (tim6_tick >= 1000)
+        if (tim6_tick >= FLOW_WINDOW_TICKS)
         {
             tim6_tick = 0;
             flow_update_flag = true;
         }
 
+        serial_timer++;
         hall_check_flag = true;
         lasers_flag = true;
     }
 }
+
+
 /* USER CODE END 4 */
 
 /**
