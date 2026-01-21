@@ -3,13 +3,14 @@
 #include "mks42d.h"
 #include "uart_hal.h"
 #include "tim.h"
+#include "motor_control.h"
 
 // Static variables
 static uint8_t txBuffer[64];
 static uint8_t rxBuffer[64];
 
 // Private helper
-static inline USART_TypeDef* MKS_BUS(void) { return USART1; }
+static inline USART_TypeDef* MKS_BUS(void) { return USART3; }
 
 uint8_t getCheckSum(uint8_t *buffer, uint8_t size) {
     uint16_t sum = 0;
@@ -32,6 +33,9 @@ uint8_t readGoHomeFinishAck(void)
 {
     uint8_t Rx_total = UartHAL_RxAvailable(MKS_BUS());
     if (Rx_total < 5) return 0; // Frame is 5 bytes
+    
+//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 1);
+//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 0);
 
     uint8_t success_cnt = 0;
     uint8_t buffer[5];
@@ -84,6 +88,78 @@ uint8_t readGoHomeFinishAck(void)
 
                 // Status 1: Go home start (Busy) - We ignore this if waiting for finish
                 // and simply reset to look for the next packet.
+            }
+            success_cnt = 0;
+        }
+    }
+    return 0; // Not finished yet
+}
+
+void setZero(uint8_t slaveAddr) {
+    UartHAL_FlushRx(MKS_BUS());
+    
+    txBuffer[0] = 0xFA;          // Frame header
+    txBuffer[1] = slaveAddr;     // Slave address
+    txBuffer[2] = 0x92;          // Set 0 Function Code [cite: 738]
+    txBuffer[3] = getCheckSum(txBuffer, 3); // Checksum
+    
+    UartHAL_Send(MKS_BUS(), txBuffer, 4);
+}
+
+uint8_t readSetZeroAck(void)
+{
+    uint8_t Rx_total = UartHAL_RxAvailable(MKS_BUS());
+    if (Rx_total < 5) return 0; // Frame is 5 bytes [cite: 739]
+    
+//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 1);
+//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 0);
+
+    uint8_t success_cnt = 0;
+    uint8_t buffer[5];
+    uint16_t checksum = 0;
+
+    for (uint8_t i = 0; i < Rx_total; i++) {
+        uint8_t temp = UartHAL_Read(MKS_BUS());
+
+        // State 0: Frame Header (FB)
+        if (success_cnt == 0 && temp == 0xFB) {
+            buffer[0] = temp;
+            checksum = temp;
+            success_cnt = 1;
+            continue;
+        }
+        // State 1: Slave Address (03)
+        if (success_cnt == 1) {
+            buffer[1] = temp;
+            checksum += temp;
+            if (temp != 0x03) { success_cnt = 0; continue; }
+            success_cnt = 2;
+            continue;
+        }
+        // State 2: Function Code (92 - Set 0)
+        if (success_cnt == 2) {
+            buffer[2] = temp;
+            checksum += temp;
+            if (temp != 0x92) { success_cnt = 0; continue; }
+            success_cnt = 3;
+            continue;
+        }
+        // State 3: Status Byte
+        if (success_cnt == 3) {
+            buffer[3] = temp;
+            checksum += temp;
+            success_cnt = 4;
+            continue;
+        }
+        // State 4: Checksum Verification
+        if (success_cnt == 4) {
+            uint8_t receivedChecksum = temp;
+            if ((checksum & 0xFF) == receivedChecksum) {
+                uint8_t status = buffer[3];
+                
+                if (status == 1) return 1; 
+                
+                if (status == 0) return 2;
             }
             success_cnt = 0;
         }
@@ -187,96 +263,63 @@ void readStepperSpeedTx(uint8_t slaveAddr) {
     UartHAL_Send(MKS_BUS(), txBuffer, 4);
 }
 
-uint8_t readStepperPos(int64_t *outPos)
+uint8_t readStepperPos(uint8_t ID)
 {
-    // We need at least 10 bytes for a full response frame
-    // Frame format: FB 01 31 [6 bytes data] [CRC]
-    uint8_t rxCount = UartHAL_RxAvailable(MKS_BUS());
-    if (rxCount < 10) return 0;
+    uint8_t Rx_total = UartHAL_RxAvailable(MKS_BUS());
+    if (Rx_total < 10) return 0; // need at least 10 bytes
+//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 1);
+//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 0);
+    uint8_t success_cnt = 0;
+    uint8_t buffer[10];
+    uint16_t checksum = 0;
 
-    // State machine variables
-    static uint8_t state = 0;
-    static uint8_t checksum = 0;
-    static uint8_t dataBytes[6];
-    
-    // Process all available bytes
-    for (uint8_t i = 0; i < rxCount; i++) {
-        uint8_t byte = UartHAL_Read(MKS_BUS());
+    for (uint8_t i = 0; i < Rx_total; i++) {
+        uint8_t temp = UartHAL_Read(MKS_BUS());
 
-        switch (state) {
-            case 0: // Header check
-                if (byte == 0xFB) {
-                    state = 1;
-                    checksum = byte;
+        if (success_cnt == 0 && temp == 0xFB) {
+            buffer[0] = temp;
+            checksum = temp;
+            success_cnt = 1;
+            continue;
+        }
+        if (success_cnt == 1) {
+            buffer[1] = temp;
+            checksum += temp;
+            if (temp != ID) { success_cnt = 0; continue; }
+            success_cnt = 2;
+            continue;
+        }
+        if (success_cnt == 2) {
+            buffer[2] = temp;
+            checksum += temp;
+            if (temp != 0x31) { success_cnt = 0; continue; }
+            success_cnt = 3;
+            continue;
+        }
+        if (success_cnt >= 3 && success_cnt < 9) {
+            buffer[success_cnt] = temp;
+            checksum += temp;
+            success_cnt++;
+            continue;
+        }
+        if (success_cnt == 9) {
+            uint8_t receivedChecksum = temp;
+            if ((checksum & 0xFF) == receivedChecksum) {
+                // --- Assemble full 48-bit signed position ---
+                int64_t pos = 0;
+                for (int j = 0; j < 6; j++) {
+                    pos = (pos << 8) | buffer[3 + j];
                 }
-                break;
-
-            case 1: // ID check (Hardcoded to 0x01)
-                if (byte == 0x03) {
-                    state = 2;
-                    checksum += byte;
-                } else {
-                    state = 0; // Reset if ID doesn't match
+                if (pos & ((int64_t)1 << 47)) {
+                    pos |= ~((int64_t)0xFFFFFFFFFFFF);
                 }
-                break;
-
-            case 2: // Function Code check (0x31 = Read Position)
-                if (byte == 0x31) {
-                    state = 3;
-                    checksum += byte;
-                } else {
-                    state = 0; // Reset if not the expected function
-                }
-                break;
-
-            // Capture 6 bytes of Position Data (int48_t)
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-                dataBytes[state - 3] = byte;
-                checksum += byte;
-                state++;
-                break;
-
-            case 9: // Checksum Verification
-                if (byte == (checksum & 0xFF)) {
-                    // Packet Valid - Parse Data
-                    int64_t tempPos = 0;
-
-                    // Combine 6 bytes (Big Endian)
-                    for (int j = 0; j < 6; j++) {
-                        tempPos = (tempPos << 8) | dataBytes[j];
-                    }
-
-                    // Handle 48-bit Sign Extension to 64-bit
-                    // If the 48th bit (0x800000000000) is 1, it's negative.
-                    if (tempPos & 0x800000000000) {
-                        tempPos |= 0xFFFF000000000000;
-                    }
-
-                    // Update output variable
-                    if (outPos != NULL) {
-                        *outPos = tempPos;
-                    }
-                    
-                    // Optional: Toggle debug LED like original code
-                    // HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
-                    
-                    state = 0; // Reset for next packet
-                    return 1;  // Success
-                }
-                
-                state = 0; // Checksum failed, reset
-                break;
-                
-            default:
-                state = 0;
-                break;
+                stepper_pos = (int32_t)pos;
+//                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 1);
+//                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, 0);
+                return 1; // success
+            }
+            success_cnt = 0;
         }
     }
-
-    return 0; // No complete packet found in this batch
+    return 0;
 }

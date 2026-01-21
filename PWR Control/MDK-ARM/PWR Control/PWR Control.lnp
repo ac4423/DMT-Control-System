@@ -4,6 +4,8 @@
 "pwr control\lasers.o"
 "pwr control\mks42d.o"
 "pwr control\uart_hal.o"
+"pwr control\motor_control.o"
+"pwr control\computer_bridge.o"
 "pwr control\main.o"
 "pwr control\gpio.o"
 "pwr control\tim.o"

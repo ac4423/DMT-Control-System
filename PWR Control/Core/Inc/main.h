@@ -61,6 +61,13 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 extern bool hall_check_flag;
 extern bool lasers_flag;
+extern bool motor_flag;
+extern bool motor_read_flag;
+extern bool stepper_rx_check_flag;
+extern bool check_start_flag;
+extern bool transmit_data_flag;
+
+extern uint32_t timer_sync_count;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

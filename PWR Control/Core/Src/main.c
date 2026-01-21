@@ -28,6 +28,9 @@
 #include "hall_sensor.h"
 #include "lasers.h"
 #include "mks42d.h"
+#include "motor_control.h"
+#include "computer_bridge.h"
+#include "uart_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,8 +52,15 @@
 /* USER CODE BEGIN PV */
 bool hall_check_flag = false;
 bool lasers_flag = false;
+bool motor_flag = false;
+bool motor_read_flag = false;
+bool stepper_rx_check_flag = false;
+bool check_start_flag = false;
+bool transmit_data_flag = false;
 
-uint32_t timer_cnt_test = 0;
+uint32_t timer_cnt_1s = 0;
+uint8_t timer_cnt_2ms = 0;
+uint32_t timer_sync_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -95,21 +105,32 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM6_Init();
-  MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim6);
-  HAL_Delay(100);
   goHome(0x03);
   while (1)
   {
     uint8_t result = readGoHomeFinishAck();
-
-    if (result == 1) {
+    if (result == 1) { // 1 = Success
         break; 
     }
     HAL_Delay(10);
   }
+  HAL_Delay(5000);
+  setZero(0x03);
+  while (1)
+  {
+    uint8_t result = readSetZeroAck();
+    if (result == 1) { // 1 = Success
+        break; 
+    }
+    HAL_Delay(10);
+  }
+  HAL_Delay(1000);
+  positionMode2Run(0x03, 500, 50, 1600);
+  HAL_Delay(5000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -119,8 +140,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    hall_status_check();
-    lasers_shutdown();
+//    hall_status_check();
+//    lasers_shutdown();
+      check_start();
+      motor_test();
+      motor_read();
+      transmit_data();
   }
   /* USER CODE END 3 */
 }
@@ -171,6 +196,27 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0);
         hall_check_flag = true;
         lasers_flag = true;
+        stepper_rx_check_flag = true;
+        check_start_flag = true;
+        if (++timer_cnt_1s >= 10000)
+        {
+          timer_cnt_1s = 0;
+          motor_flag = true;
+        }
+        if (++timer_cnt_2ms >= 20)
+        {
+            timer_cnt_2ms = 0;
+            motor_read_flag = true;
+            transmit_data_flag = true;
+        }
+        if (run_state)
+        {
+            timer_sync_count++;
+        }
+        else
+        {
+            timer_sync_count = 0;
+        }
     }
 }
 /* USER CODE END 4 */
