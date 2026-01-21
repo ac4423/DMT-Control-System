@@ -1,4 +1,5 @@
-pwr\ control/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
+pwr\ control/injection_pump.o: ..\Core\Src\injection_pump.c \
+  ..\Core\Inc\injection_pump.h ..\Core\Inc\main.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal.h \
   ..\Core\Inc\stm32f1xx_hal_conf.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_rcc.h \
@@ -21,6 +22,4 @@ pwr\ control/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim_ex.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_uart.h \
-  ..\Core\Inc\tim.h ..\Core\Inc\usart.h ..\Core\Inc\gpio.h \
-  ..\Core\Inc\hall_sensor.h ..\Core\Inc\lasers.h ..\Core\Inc\mks42d.h \
-  ..\Core\Inc\flowmeter.h ..\Core\Inc\injection_pump.h
+  ..\Core\Inc\gpio.h

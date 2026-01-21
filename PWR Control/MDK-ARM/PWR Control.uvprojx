@@ -415,6 +415,26 @@
               <FilePath>..\Core\Src\uart_hal.c</FilePath>
             </File>
             <File>
+              <FileName>flowmeter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\flowmeter.c</FilePath>
+            </File>
+            <File>
+              <FileName>flowmeter.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\flowmeter.h</FilePath>
+            </File>
+            <File>
+              <FileName>injection_pump.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\injection_pump.h</FilePath>
+            </File>
+            <File>
+              <FileName>injection_pump.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\injection_pump.c</FilePath>
+            </File>
+            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/main.c</FilePath>
@@ -547,9 +567,6 @@
               <FilePath>../Core/Src/stm32f1xx_hal_msp.c</FilePath>
             </File>
           </Files>
-        </Group>
-        <Group>
-          <GroupName>::CMSIS</GroupName>
         </Group>
         <Group>
           <GroupName>Drivers/STM32F1xx_HAL_Driver</GroupName>
@@ -1538,6 +1555,9 @@
               </FileOption>
             </File>
           </Files>
+        </Group>
+        <Group>
+          <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>
     </Target>

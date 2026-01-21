@@ -28,6 +28,9 @@
 #include "hall_sensor.h"
 #include "lasers.h"
 #include "mks42d.h"
+#include "flowmeter.h"
+#include "injection_pump.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,6 +54,9 @@ bool hall_check_flag = false;
 bool lasers_flag = false;
 
 uint32_t timer_cnt_test = 0;
+
+volatile uint32_t tim6_tick = 0;
+volatile bool flow_update_flag = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,42 +104,84 @@ int main(void)
   MX_TIM6_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim6);
+  HAL_TIM_Base_Start_IT(&htim6); // start timer6-driven highest level/main function actions.
   HAL_Delay(100);
   goHome(0x03);
   
-	/*
-	while (1)
-  {
-		
-		
-    uint8_t result = readGoHomeFinishAck();
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); // start timer2-driven PWM for (to 12V PWM module then to) injection pump.
 
-    if (result == 1) {
-        break; 
-    }
-    HAL_Delay(10);
-  }
-	*/
-		
+	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1); // start flow meter input timer3-enabled channels
+	
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); // timer for powering LED (debugging)
+	FlowMeter_Init();
+	InjectionPump_Init();
+
+	
+	// uint32_t last_update = HAL_GetTick();
+	
+	uint32_t duty_pump = 49; // maximum is 49
+	uint32_t duty_LED = 0; // maximum is 49
+	
+	volatile int8_t dir = 1;
+
+	while (1)
+	{
+			if (flow_update_flag)
+			{
+					flow_update_flag = false;
+
+					FlowMeter_Update(100);  // 100 ms window
+
+					float flow = FlowMeter_GetFlow_Lmin();
+
+					if (flow < 0.3f) flow = 0.3f;
+					if (flow > 6.0f) flow = 6.0f;
+
+					duty_LED = (uint32_t)(((flow - 0.3f) / (6.0f - 0.3f)) * 49.0f);
+					if (duty_LED > 49) duty_LED = 49;
+					if (duty_LED < 0) duty_LED = 0;
+			}
+
+			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_pump);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, duty_LED);
+			
+//			// example of functionality:
+//			
+//			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, duty_LED);
+
+//			duty_LED += dir;
+//			
+//			if (duty_LED >= 49) {
+//				dir = -1;
+//			}
+//			
+//			else if (duty_LED <= 0) {
+//				dir = 1;
+//			}
+
+//			HAL_Delay(20);
+	}
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-		HAL_Delay(1000);
-		// HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, 1);
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_13);
-		
-		
+  
+//	while (1)
+//  {
+//		HAL_Delay(1000);
+//		// HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, 1);
+//		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_13);
+//		
+//		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // hall_status_check();
-    // lasers_shutdown();
-  }
+//    // hall_status_check();
+//    // lasers_shutdown();
+//  }
   /* USER CODE END 3 */
 }
 
@@ -177,11 +225,29 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM3 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+        FlowMeter_PulseCallback();
+    }
+}
+
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM6) {
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0);
+    if (htim->Instance == TIM6)
+    {
+        tim6_tick++;
+
+        // 100ms = 1000 ticks at 10kHz
+        if (tim6_tick >= 1000)
+        {
+            tim6_tick = 0;
+            flow_update_flag = true;
+        }
+
         hall_check_flag = true;
         lasers_flag = true;
     }
