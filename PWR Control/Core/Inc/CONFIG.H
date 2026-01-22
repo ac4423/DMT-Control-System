@@ -24,12 +24,12 @@
 // Timer 6 tick period in microseconds:
 #define TIM6_TICK_uS  100   // microseconds
 
-#define FLOW_WINDOW_MS   100     // averaging window for instantaneous flow rate
-#define SERIAL_SEND_MS  200    // time period of how often to send serial USB debug data
+#define FLOW_WINDOW_MS   50     // averaging window for instantaneous flow rate
+#define SERIAL_SEND_MS  100    // time period of how often to send serial USB debug data
 
 /* ================= Flowmeter ================= */
 
-#define FLOW_PULSES_PER_LITRE   5880   // calibrate if needed
+#define FLOW_PULSES_PER_LITRE   588   // calibrate if needed
 
 /* ================= extern declarations ================= */
 
