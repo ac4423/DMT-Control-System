@@ -16,6 +16,7 @@
 "pwr control\usart.o"
 "pwr control\stm32f1xx_it.o"
 "pwr control\stm32f1xx_hal_msp.o"
+"pwr control\flow_lut.o"
 "pwr control\usb_device.o"
 "pwr control\usbd_desc.o"
 "pwr control\usbd_cdc_if.o"

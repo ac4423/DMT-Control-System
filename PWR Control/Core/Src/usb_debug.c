@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include "injection_and_flow.h"
 #include "config.h"
+#include "flow_lut.h"
 
 int8_t usb_serial_flag;
 
@@ -84,4 +85,16 @@ void Dump_LongTerm_Memory_USB(void)
 
     const char *footer = "END_LONGTERM_DUMP\r\n";
     CDC_Transmit_FS((uint8_t*)footer, strlen(footer));
+}
+
+/* --- USB debug dump --- */
+void FlowLUT_SendToUSB(void)
+{
+    char msg[64];
+    for (size_t i = 0; i < FlowLUT.n_points; i++) {
+        int len = snprintf(msg, sizeof(msg), "LUT[%lu]: %.3f L/min -> Duty %u\r\n",
+                           i, FlowLUT.points[i].flow_lmin, FlowLUT.points[i].duty);
+        while (CDC_Transmit_FS((uint8_t*)msg, len) == USBD_BUSY)
+            HAL_Delay(1);
+    }
 }

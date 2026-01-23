@@ -272,9 +272,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 						usb_serial_flag = 1;
         }
 				
-				if (++pump_counter >= pump_ticks_threshold) {
-						pump_counter = 0;
-						pump_flag = 1;
+				if (++Pump_Control.pump_counter >= pump_ticks_threshold) {
+						Pump_Control.pump_counter = 0;
+						Pump_Control.pump_flag = 1;
         }
 				
         if (run_state) {
