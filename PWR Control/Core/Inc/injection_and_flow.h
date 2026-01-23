@@ -6,6 +6,8 @@
 #include "CONFIG.H"
 
 extern volatile uint32_t duty_pump;
+extern int pump_flag;
+extern uint16_t pump_counter;
 
 void InjectionAndFlow_Init(void);
 void FlowMeter_PulseCallback(void);
@@ -15,6 +17,8 @@ void FlowMeter_UpdateTotal(void);
 
 float FlowMeter_GetFlow_Lmin(void);
 float FlowMeter_GetTotalLitres(void);
+
+void update_pump_state(void);
 
 
 extern volatile uint32_t pulse_count_window;

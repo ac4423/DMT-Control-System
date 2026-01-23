@@ -129,6 +129,8 @@ static int8_t CDC_Receive_FS(uint8_t* pbuf, uint32_t *Len);
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
 
+void usb_rx_process(uint8_t c);
+
 /* USER CODE END PRIVATE_FUNCTIONS_DECLARATION */
 
 /**
@@ -260,6 +262,11 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
+  for (uint32_t i = 0; i < *Len; i++)
+  {
+      usb_rx_process(Buf[i]);
+  }
+
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
   return (USBD_OK);
@@ -293,7 +300,32 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
+extern volatile uint8_t request_dump_long_term;
+extern volatile uint8_t stream_enabled;
+
+void usb_rx_process(uint8_t c)
+{
+    switch (c)
+    {
+        case 'd':   // dump long-term memory
+            request_dump_long_term = 1;
+            break;
+
+        case 'x':   // stop streaming
+            stream_enabled = 0;
+            break;
+
+        case 's':   // start streaming
+            stream_enabled = 1;
+            break;
+
+        default:
+            break;
+    }
+}
+
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
+
 
 /**
   * @}

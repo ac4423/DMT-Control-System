@@ -130,7 +130,7 @@ int main(void)
 	InjectionAndFlow_Init();
 	flags_init();
 	
-	#if !SKIP_STARTUP_SEQUENCE
+	#if !SKIP_STARTUP_SEQUENCE // in config.h
 	
 		goHome(0x03);
 	
@@ -180,6 +180,8 @@ int main(void)
 			#if ENABLE_USB_SERIAL_DEBUG
 					USB_serial_send_debug();
 			#endif
+		
+			update_pump_state();
   }
   /* USER CODE END 3 */
 }
@@ -267,7 +269,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				
 				if (++usb_serial_timer >= serial_send_ticks_threshold) {
 						usb_serial_timer = 0;
-						usb_serial_flag = true;
+						usb_serial_flag = 1;
+        }
+				
+				if (++pump_counter >= pump_ticks_threshold) {
+						pump_counter = 0;
+						pump_flag = 1;
         }
 				
         if (run_state) {
@@ -277,6 +284,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         else {
 						timer_sync_count = 0;
         }
+				
+				
     }
 }
 /* USER CODE END 4 */

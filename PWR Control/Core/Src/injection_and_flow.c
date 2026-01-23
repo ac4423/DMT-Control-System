@@ -10,6 +10,10 @@
 #include "injection_and_flow.h"
 #include "stm32f1xx_hal.h"
 #include "config.h"
+#include "main.h"
+#include "tim.h"
+#include "usart.h"
+#include "usb_device.h"
 
 #if RECORD_PULSE_TIMESTAMPS
     static volatile uint16_t pulse_deltas[LONG_TERM_PULSE_ARRAY_CAPACITY];
@@ -45,6 +49,9 @@ void InjectionAndFlow_Init(void)
 
     short_term_index = 0;
     short_term_count = 0;
+		
+		pump_flag = 0;
+		pump_counter = 0;
 
 #if RECORD_PULSE_TIMESTAMPS
     pulse_delta_index = 0;
@@ -187,4 +194,11 @@ float FlowMeter_GetFlow_Lmin(void)
 float FlowMeter_GetTotalLitres(void)
 {
     return total_litres;
+}
+
+void update_pump_state(void) {
+	if (pump_flag) {
+		pump_flag = 0;
+		__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_pump);
+	}
 }

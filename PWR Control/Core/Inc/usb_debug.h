@@ -12,6 +12,7 @@ extern "C" {
 extern int8_t usb_serial_flag;
 
 void USB_serial_send_debug(void);
+void Dump_LongTerm_Memory_USB(void);
 
 #ifdef __cplusplus
 }
