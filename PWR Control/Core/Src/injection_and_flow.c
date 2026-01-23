@@ -11,8 +11,6 @@
 #include "stm32f1xx_hal.h"
 #include "config.h"
 
-uint32_t last_pulse_tick = 0;
-
 #if RECORD_PULSE_TIMESTAMPS
     static volatile uint16_t pulse_deltas[LONG_TERM_PULSE_ARRAY_CAPACITY];
     static volatile uint32_t pulse_delta_index = 0;
@@ -33,6 +31,9 @@ float last_flow_lmin = 0.0f;
 float total_litres = 0.0f;
 
 volatile uint32_t duty_pump = 0; // maximum 49
+
+// --- External HAL tick function ---
+extern uint32_t HAL_GetTick(void);
 
 /* Initialization */
 void InjectionAndFlow_Init(void)
@@ -88,9 +89,7 @@ void FlowMeter_TickHook(void)
  */
 void FlowMeter_PulseCallback(void)
 {
-    uint32_t now = tim6_tick; // current timestamp in ms
-		last_pulse_tick = now;
-
+    uint32_t now = HAL_GetTick(); // current timestamp in ms
 
     // --- Short-term buffer ---
     short_term_pulses[short_term_index] = now;
@@ -99,7 +98,7 @@ void FlowMeter_PulseCallback(void)
 
     // --- Long-term counting ---
     pulse_count_window++;
-    total_litres += 1.0f / FLOW_PULSES_PER_LITRE;
+    pulse_count_total++;
 
 #if RECORD_PULSE_TIMESTAMPS
     if (pulse_delta_index < LONG_TERM_PULSE_ARRAY_CAPACITY) {
@@ -130,71 +129,55 @@ void FlowMeter_UpdateInstantaneous(void)
         return;
     }
 
-    uint32_t now = tim6_tick;
-		
-    uint32_t window_ticks = flowmeter_window_ticks;
+    uint32_t now = HAL_GetTick();
+    uint32_t window_start = now - FLOW_WINDOW_MS;
 
-		if ((uint32_t)(now - last_pulse_tick) > window_ticks) {
-				last_flow_lmin = 0.0f;
-				return;
-		}
-		
+    // Count pulses in the short-term buffer that are inside the window
     uint16_t pulses_in_window = 0;
-    uint16_t oldest_index =
-        (index + SHORT_TERM_PULSE_BUFFER_SIZE - count) % SHORT_TERM_PULSE_BUFFER_SIZE;
+    uint16_t oldest_index = (index + SHORT_TERM_PULSE_BUFFER_SIZE - count) % SHORT_TERM_PULSE_BUFFER_SIZE;
 
-    // Count pulses in window (rollover-safe)
     for (uint16_t i = 0; i < count; i++) {
         uint16_t buf_index = (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
-        uint32_t t = short_term_pulses[buf_index];
-
-        if ((uint32_t)(now - t) <= window_ticks) {
+        if (short_term_pulses[buf_index] >= window_start) {
             pulses_in_window++;
         }
     }
 
     if (pulses_in_window < 2) {
-        last_flow_lmin = 0.0f;
+        last_flow_lmin = 0.0f; // not enough pulses to calculate flow
         return;
     }
 
+    // Time span of pulses in the window
     uint32_t t_first = 0xFFFFFFFF;
     uint32_t t_last = 0;
 
-    // Find first and last pulse times in window
     for (uint16_t i = 0; i < count; i++) {
         uint16_t buf_index = (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
         uint32_t t = short_term_pulses[buf_index];
-
-        if ((uint32_t)(now - t) <= window_ticks) {
+        if (t >= window_start) {
             if (t < t_first) t_first = t;
-            if (t > t_last)  t_last  = t;
+            if (t > t_last) t_last = t;
         }
     }
 
-    uint32_t delta_ticks = t_last - t_first;
-    if (delta_ticks == 0) delta_ticks = 1;
+    uint32_t delta_ms = t_last - t_first;
+    if (delta_ms == 0) delta_ms = 1;
 
-    // pulses ? litres
+    // Convert pulses to litres
     float litres = (float)(pulses_in_window - 1) / FLOW_PULSES_PER_LITRE;
 
-    // ticks ? seconds
-    float time_sec = ((float)delta_ticks * (float)TIM6_TICK_uS) / 1000000.0f;
-
-    // litres/sec ? litres/min
-    last_flow_lmin = litres / (time_sec / 60.0f);
+    // Convert to L/min
+    last_flow_lmin = litres / ((float)delta_ms / 60000.0f);
 }
 
 /**
  * Update cumulative total volume
  */
-
-/*
 void FlowMeter_UpdateTotal(void)
 {
     total_litres = (float)pulse_count_total / (float)FLOW_PULSES_PER_LITRE;
 }
-*/
 
 float FlowMeter_GetFlow_Lmin(void)
 {

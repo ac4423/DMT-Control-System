@@ -14,7 +14,7 @@ void USB_serial_send_debug() {
 		usb_serial_flag = 0;
 		
 		FlowMeter_UpdateInstantaneous();
-		// FlowMeter_UpdateTotal();
+		FlowMeter_UpdateTotal();
 		
 		float flow = FlowMeter_GetFlow_Lmin();
 		float volume = FlowMeter_GetTotalLitres();
