@@ -66,7 +66,6 @@ bool transmit_data_flag = false;
 // volatile int flowmeter_pulse_flag = 0;
 volatile bool injection_system_flag = 0;
 
-uint32_t tim6_tick = 0;
 uint32_t timer_cnt_1s = 0;
 uint8_t timer_cnt_2ms = 0;
 uint32_t timer_sync_count = 0;
@@ -248,7 +247,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0);
 			
-				tim6_tick++;   // new extern counter variable (CONFIG.h)
+				// tim6_tick++;   // new extern counter variable (CONFIG.h)
 				
         hall_check_flag = true;
         lasers_flag = true;
