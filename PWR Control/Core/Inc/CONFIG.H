@@ -44,7 +44,7 @@ extern uint32_t last_pulse_tick;
 extern uint32_t flowmeter_window_ticks;
 extern uint32_t serial_send_ticks_threshold;
 extern volatile int flowmeter_pulse_flag;
-extern uint32_t pump_ticks_thresholdl;
+extern uint32_t pump_ticks_threshold;
 
 extern volatile uint8_t request_dump_long_term;
 extern volatile uint8_t stream_enabled;

@@ -15,6 +15,11 @@
 #include "usart.h"
 #include "usb_device.h"
 
+//definitions:
+volatile uint32_t duty_pump;
+int pump_flag;
+uint16_t pump_counter;
+
 #if RECORD_PULSE_TIMESTAMPS
     static volatile uint16_t pulse_deltas[LONG_TERM_PULSE_ARRAY_CAPACITY];
     static volatile uint32_t pulse_delta_index = 0;
