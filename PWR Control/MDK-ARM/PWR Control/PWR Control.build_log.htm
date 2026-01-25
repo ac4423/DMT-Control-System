@@ -1,0 +1,262 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: µVision V5.43.1.0
+Copyright (C) 2025 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: Andrei Chernolesskiy, Imperial College London, LIC=----
+ 
+Tool Versions:
+Toolchain:       MDK-Lite  Version: 5.43.0.0
+Toolchain Path:  C:\Users\andre\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin
+C Compiler:      ArmClang.exe V6.24
+Assembler:       Armasm.exe V6.24
+Linker/Locator:  ArmLink.exe V6.24
+Library Manager: ArmAr.exe V6.24
+Hex Converter:   FromElf.exe V6.24
+CPU DLL:         SARMCM3.DLL V5.43.0.0
+Dialog DLL:      DCM.DLL V1.17.5.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.3.1.0
+Dialog DLL:      TCM.DLL V1.56.6.0
+ 
+<h2>Project:</h2>
+C:\Users\andre\Documents\ME3\DMT\DMT-Control-System\PWR Control\MDK-ARM\PWR Control.uvprojx
+Project File Date:  01/23/2026
+
+<h2>Output:</h2>
+*** Using Compiler 'V6.24', folder: 'C:\Users\andre\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin'
+Build target 'PWR Control'
+Note: source file '..\Core\Src\CONFIG.c' - object file renamed from 'PWR Control\CONFIG.o' to 'PWR Control\config_1.o'.
+compiling CONFIG.h...
+../Core/Src/CONFIG.c(14): error: use of undeclared identifier 'FLOW_WINDOW_MS'
+   14 | uint32_t flowmeter_window_ticks = MS_TO_TICKS(FLOW_WINDOW_MS);
+      |                                               ^
+../Core/Src/CONFIG.c(14): error: use of undeclared identifier 'TIM6_TICK_uS'
+   14 | uint32_t flowmeter_window_ticks = MS_TO_TICKS(FLOW_WINDOW_MS);
+      |                                   ^
+../Core/Src/CONFIG.c(12): note: expanded from macro 'MS_TO_TICKS'
+   12 | #define MS_TO_TICKS(ms)   ((uint32_t)(((ms) * 1000U) / TIM6_TICK_uS))
+      |                                                        ^
+../Core/Src/CONFIG.c(15): error: use of undeclared identifier 'SERIAL_SEND_MS'
+   15 | uint32_t serial_send_ticks_threshold      = MS_TO_TICKS(SERIAL_SEND_MS);
+      |                                                         ^
+../Core/Src/CONFIG.c(15): error: use of undeclared identifier 'TIM6_TICK_uS'
+   15 | uint32_t serial_send_ticks_threshold      = MS_TO_TICKS(SERIAL_SEND_MS);
+      |                                             ^
+../Core/Src/CONFIG.c(12): note: expanded from macro 'MS_TO_TICKS'
+   12 | #define MS_TO_TICKS(ms)   ((uint32_t)(((ms) * 1000U) / TIM6_TICK_uS))
+      |                                                        ^
+../Core/Src/CONFIG.c(16): error: use of undeclared identifier 'PUMP_SAMPLE_TIME_MS'
+   16 | uint32_t pump_ticks_threshold = MS_TO_TICKS(PUMP_SAMPLE_TIME_MS);
+      |                                             ^
+../Core/Src/CONFIG.c(16): error: use of undeclared identifier 'TIM6_TICK_uS'
+   16 | uint32_t pump_ticks_threshold = MS_TO_TICKS(PUMP_SAMPLE_TIME_MS);
+      |                                 ^
+../Core/Src/CONFIG.c(12): note: expanded from macro 'MS_TO_TICKS'
+   12 | #define MS_TO_TICKS(ms)   ((uint32_t)(((ms) * 1000U) / TIM6_TICK_uS))
+      |                                                        ^
+6 errors generated.
+compiling CONFIG.c...
+compiling computer_bridge.c...
+compiling lasers.c...
+compiling motor_control.c...
+compiling hall_sensor.c...
+compiling uart_hal.c...
+compiling mks42d.c...
+../Core/Src/usb_debug.c(6): warning: In file included from...
+../Core/Inc\injection_and_flow.h(15): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+   15 |     volatile uint32_t short_term_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+      |                                         ^
+../Core/Inc\injection_and_flow.h(46): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+   46 |     float flow_schedule[FLOW_SCHEDULE_LEN];  // desired flow for future ticks
+      |                         ^
+../Core/Src/usb_debug.c(13): error: use of undeclared identifier 'stream_enabled'
+   13 |         if (stream_enabled) {
+      |             ^
+../Core/Src/usb_debug.c(33): error: use of undeclared identifier 'request_dump_long_term'
+   33 |         if (request_dump_long_term)
+      |             ^
+../Core/Src/usb_debug.c(35): error: use of undeclared identifier 'request_dump_long_term'
+   35 |         request_dump_long_term = 0;
+      |         ^
+../Core/Src/usb_debug.c(54): error: call to undeclared function 'FlowMeter_GetPulseDeltaCount'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   54 |     count = FlowMeter_GetPulseDeltaCount();
+      |             ^
+../Core/Src/usb_debug.c(59): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   59 |                        "\r\nLONGTERM_DUMP,count=%lu\r\n", count);
+      |                                                 ~~~       ^~~~~
+      |                                                 %u
+../Core/Src/usb_debug.c(62): error: call to undeclared function 'FlowMeter_GetPulseDeltas'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   62 |     const volatile uint16_t* deltas = FlowMeter_GetPulseDeltas();
+      |                                       ^
+../Core/Src/usb_debug.c(62): error: incompatible integer to pointer conversion initializing 'const volatile uint16_t *' (aka 'const volatile unsigned short *') with an expression of type 'int' [-Wint-conversion]
+   62 |     const volatile uint16_t* deltas = FlowMeter_GetPulseDeltas();
+      |                              ^        ~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/usb_debug.c(70): error: use of undeclared identifier 'PULSE_OVERFLOW_MARKER'
+   70 |         if (v == PULSE_OVERFLOW_MARKER)
+      |                  ^
+../Core/Src/usb_debug.c(72): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   72 |             len = snprintf(line, sizeof(line), "%lu,OVERFLOW\r\n", i);
+      |                                                 ~~~                ^
+      |                                                 %u
+../Core/Src/usb_debug.c(76): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   76 |             len = snprintf(line, sizeof(line), "%lu,%u\r\n", i, v);
+      |                                                 ~~~          ^
+      |                                                 %u
+../Core/Src/usb_debug.c(96): warning: format specifies type 'unsigned long' but the argument has type 'size_t' (aka 'unsigned int') [-Wformat]
+   95 |         int len = snprintf(msg, sizeof(msg), "LUT[%lu]: %.3f L/min -> Duty %u\r\n",
+      |                                                   ~~~
+      |                                                   %zu
+   96 |                            i, FlowLUT.points[i].flow_lmin, FlowLUT.points[i].duty);
+      |                            ^
+4 warnings and 9 errors generated.
+compiling usb_debug.c...
+../Core/Src/injection_and_flow.c(3): warning: In file included from...
+../Core/Inc\injection_and_flow.h(15): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+   15 |     volatile uint32_t short_term_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+      |                                         ^
+../Core/Inc\injection_and_flow.h(46): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+   46 |     float flow_schedule[FLOW_SCHEDULE_LEN];  // desired flow for future ticks
+      |                         ^
+../Core/Src/injection_and_flow.c(52): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+   52 |                 for (uint16_t i = 0; i < FLOW_SCHEDULE_LEN; i++) {
+      |                                          ^
+../Core/Src/injection_and_flow.c(60): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+   60 |                 for (uint16_t i = 0; i < SHORT_TERM_PULSE_BUFFER_SIZE; i++) {
+      |                                          ^
+../Core/Src/injection_and_flow.c(61): error: use of undeclared identifier 'UNPOPULATED_ELEMENT_MARKER'
+   61 |                                 Flow_State.short_term_pulses[i] = UNPOPULATED_ELEMENT_MARKER;
+      |                                                                   ^
+../Core/Src/injection_and_flow.c(107): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+  107 |         (Flow_State.short_term_index + 1) % SHORT_TERM_PULSE_BUFFER_SIZE;
+      |                                             ^
+../Core/Src/injection_and_flow.c(109): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+  109 |     if (Flow_State.short_term_count < SHORT_TERM_PULSE_BUFFER_SIZE)
+      |                                       ^
+../Core/Src/injection_and_flow.c(145): error: use of undeclared identifier 'FLOW_WINDOW_MS'
+  145 |     uint32_t window_start = now - FLOW_WINDOW_MS;
+      |                                   ^
+../Core/Src/injection_and_flow.c(149): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+  149 |         (index + SHORT_TERM_PULSE_BUFFER_SIZE - count) % SHORT_TERM_PULSE_BUFFER_SIZE;
+      |                  ^
+../Core/Src/injection_and_flow.c(149): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+  149 |         (index + SHORT_TERM_PULSE_BUFFER_SIZE - count) % SHORT_TERM_PULSE_BUFFER_SIZE;
+      |                                                          ^
+../Core/Src/injection_and_flow.c(153): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+  153 |             (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
+      |                                  ^
+../Core/Src/injection_and_flow.c(168): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+  168 |             (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
+      |                                  ^
+../Core/Src/injection_and_flow.c(180): error: use of undeclared identifier 'FLOW_PULSES_PER_LITRE'
+  180 |         (float)(pulses_in_window - 1) / FLOW_PULSES_PER_LITRE;
+      |                                         ^
+../Core/Src/injection_and_flow.c(192): error: use of undeclared identifier 'FLOW_PULSES_PER_LITRE'
+  192 |         (float)Flow_State.pulse_count_total / (float)FLOW_PULSES_PER_LITRE;
+      |                                                      ^
+../Core/Src/injection_and_flow.c(237): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+  237 |                 uint16_t next_head = (head + 1) % FLOW_SCHEDULE_LEN;
+      |                                                   ^
+../Core/Src/injection_and_flow.c(244): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+  244 |                                 distance = FLOW_SCHEDULE_LEN - (head - tail);
+      |                                            ^
+../Core/Src/injection_and_flow.c(246): error: use of undeclared identifier 'FLOW_SCHEDULE_MIN_LOOKAHEAD'
+  246 |                 if (distance > FLOW_SCHEDULE_MIN_LOOKAHEAD) {
+      |                                ^
+../Core/Src/injection_and_flow.c(287): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+  287 |         return FLOW_SCHEDULE_LEN - (head - tail);
+      |                ^
+../Core/Src/injection_and_flow.c(294): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+  294 |     uint16_t next = (tail + 1) % FLOW_SCHEDULE_LEN;
+      |                                  ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+20 errors generated.
+compiling injection_and_flow.c...
+compiling gpio.c...
+compiling usart.c...
+compiling stm32f1xx_hal_msp.c...
+compiling stm32f1xx_it.c...
+../Core/Src/main.c(36): warning: In file included from...
+../Core/Inc\injection_and_flow.h(15): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+   15 |     volatile uint32_t short_term_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+      |                                         ^
+../Core/Inc\injection_and_flow.h(46): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+   46 |     float flow_schedule[FLOW_SCHEDULE_LEN];  // desired flow for future ticks
+      |                         ^
+../Core/Src/main.c(131): error: call to undeclared function 'flags_init'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  131 |         flags_init();
+      |         ^
+../Core/Src/main.c(270): error: use of undeclared identifier 'serial_send_ticks_threshold'
+  270 |                                 if (++usb_serial_timer >= serial_send_ticks_threshold) {
+      |                                                           ^
+../Core/Src/main.c(275): error: use of undeclared identifier 'pump_ticks_threshold'
+  275 |                                 if (++Pump_Control.pump_counter >= pump_ticks_threshold) {
+      |                                                                    ^
+5 errors generated.
+compiling main.c...
+compiling tim.c...
+../Core/Src/flow_lut.c(2): warning: In file included from...
+../Core/Inc\injection_and_flow.h(15): error: use of undeclared identifier 'SHORT_TERM_PULSE_BUFFER_SIZE'
+   15 |     volatile uint32_t short_term_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+      |                                         ^
+../Core/Inc\injection_and_flow.h(46): error: use of undeclared identifier 'FLOW_SCHEDULE_LEN'
+   46 |     float flow_schedule[FLOW_SCHEDULE_LEN];  // desired flow for future ticks
+      |                         ^
+2 errors generated.
+compiling flow_lut.c...
+compiling usb_device.c...
+compiling stm32f1xx_hal_gpio_ex.c...
+compiling stm32f1xx_hal_pcd_ex.c...
+compiling usbd_cdc_if.c...
+compiling usbd_conf.c...
+compiling usbd_desc.c...
+compiling stm32f1xx_hal.c...
+compiling stm32f1xx_hal_rcc_ex.c...
+compiling stm32f1xx_hal_rcc.c...
+compiling stm32f1xx_hal_pcd.c...
+compiling stm32f1xx_ll_usb.c...
+compiling stm32f1xx_hal_gpio.c...
+compiling stm32f1xx_hal_pwr.c...
+compiling stm32f1xx_hal_cortex.c...
+compiling stm32f1xx_hal_dma.c...
+compiling stm32f1xx_hal_flash.c...
+compiling stm32f1xx_hal_exti.c...
+compiling stm32f1xx_hal_flash_ex.c...
+compiling system_stm32f1xx.c...
+compiling usbd_core.c...
+compiling usbd_ioreq.c...
+compiling usbd_ctlreq.c...
+compiling stm32f1xx_hal_tim_ex.c...
+compiling usbd_cdc.c...
+compiling stm32f1xx_hal_uart.c...
+compiling stm32f1xx_hal_tim.c...
+"PWR Control\PWR Control.axf" - 41 Error(s), 4 Warning(s).
+
+<h2>Software Packages used:</h2>
+
+Package Vendor: ARM
+                https://www.keil.com/pack/ARM.CMSIS.6.3.0.pack
+                ARM::CMSIS@6.3.0
+                CMSIS (Common Microcontroller Software Interface Standard)
+   * Component: CORE Version: 6.2.0
+
+Package Vendor: Keil
+                https://www.keil.com/pack/Keil.STM32F1xx_DFP.2.4.1.pack
+                Keil::STM32F1xx_DFP@2.4.1
+                STMicroelectronics STM32F1 Series Device Support, Drivers and Examples
+
+<h2>Collection of Component include folders:</h2>
+  ./RTE/_PWR_Control
+  C:/Users/andre/AppData/Local/Arm/Packs/ARM/CMSIS/6.3.0/CMSIS/Core/Include
+  C:/Users/andre/AppData/Local/Arm/Packs/Keil/STM32F1xx_DFP/2.4.1/Device/Include
+
+<h2>Collection of Component Files used:</h2>
+
+   * Component: ARM::CMSIS:CORE@6.2.0
+      Include file:  CMSIS/Core/Include/tz_context.h
+Target not created.
+Build Time Elapsed:  00:00:04
+</pre>
+</body>
+</html>
