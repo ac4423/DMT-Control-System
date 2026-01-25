@@ -1,0 +1,27 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+# Toolchain: GNU Tools for STM32 (13.3.rel1)
+################################################################################
+
+# Add inputs and outputs from these tool invocations to the build variables 
+S_SRCS += \
+../MDK-ARM/startup/startup_stm32f103xe.s 
+
+OBJS += \
+./MDK-ARM/startup/startup_stm32f103xe.o 
+
+S_DEPS += \
+./MDK-ARM/startup/startup_stm32f103xe.d 
+
+
+# Each subdirectory must supply rules for building sources it contributes
+MDK-ARM/startup/%.o: ../MDK-ARM/startup/%.s MDK-ARM/startup/subdir.mk
+	arm-none-eabi-gcc -mcpu=cortex-m3 -c -I"C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control/Drivers/CMSIS/Device/ST/STM32F1xx/Source/Templates/gcc" -x assembler-with-cpp -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" --specs=nano.specs -mfloat-abi=soft -mthumb -o "$@" "$<"
+
+clean: clean-MDK-2d-ARM-2f-startup
+
+clean-MDK-2d-ARM-2f-startup:
+	-$(RM) ./MDK-ARM/startup/startup_stm32f103xe.d ./MDK-ARM/startup/startup_stm32f103xe.o
+
+.PHONY: clean-MDK-2d-ARM-2f-startup
+
