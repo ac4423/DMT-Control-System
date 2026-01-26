@@ -1,0 +1,17 @@
+../Core/Src/injection_and_flow.c:26:6:InjectionAndFlow_Init	16	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:72:10:FlowMeter_GetPulseDeltaCount	4	static
+../Core/Src/injection_and_flow.c:77:26:FlowMeter_GetPulseDeltas	4	static
+../Core/Src/injection_and_flow.c:82:6:FlowMeter_ResetPulseDeltas	4	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:90:6:FlowMeter_TickHook	4	static
+../Core/Src/injection_and_flow.c:106:6:FlowMeter_PulseCallback	16	static
+../Core/Src/injection_and_flow.c:138:6:FlowMeter_UpdateInstantaneous	64	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:195:6:FlowMeter_UpdateTotal	4	static
+../Core/Src/injection_and_flow.c:201:7:FlowMeter_GetFlow_Lmin	4	static
+../Core/Src/injection_and_flow.c:206:7:FlowMeter_GetTotalLitres	4	static
+../Core/Src/injection_and_flow.c:212:6:PumpControl_UpdatePI	24	static
+../Core/Src/injection_and_flow.c:233:6:update_pump_state	24	static
+../Core/Src/injection_and_flow.c:285:17:FlowSchedule_Depth	16	static
+../Core/Src/injection_and_flow.c:296:9:FlowSchedule_Push	24	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:312:9:FlowSchedule_PushImmediate	24	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:328:6:FlowSchedule_Clear	4	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:338:6:GenerateSawWaveDebug	4	static

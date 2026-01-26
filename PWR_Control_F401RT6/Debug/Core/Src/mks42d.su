@@ -1,0 +1,13 @@
+../Core/Src/mks42d.c:13:30:MKS_BUS	4	static
+../Core/Src/mks42d.c:15:9:getCheckSum	24	static
+../Core/Src/mks42d.c:21:6:goHome	16	static
+../Core/Src/mks42d.c:32:9:readGoHomeFinishAck	24	static
+../Core/Src/mks42d.c:98:6:setZero	16	static
+../Core/Src/mks42d.c:109:9:readSetZeroAck	24	static
+../Core/Src/mks42d.c:170:6:speedModeRun	24	static
+../Core/Src/mks42d.c:187:6:speedModeStop	16	static
+../Core/Src/mks42d.c:199:6:positionMode1Run	24	static
+../Core/Src/mks42d.c:222:6:positionMode2Run	16	static
+../Core/Src/mks42d.c:246:6:readStepperPosTx	16	static
+../Core/Src/mks42d.c:256:6:readStepperSpeedTx	16	static
+../Core/Src/mks42d.c:266:9:readStepperPos	88	static
