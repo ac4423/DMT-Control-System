@@ -71,5 +71,7 @@ void FlowLUT_AutoTune(void)
 
     /* Update LUT pointer */
     FlowLUT_SetPoints(new_lut, idx);
-    FlowLUT_SendToUSB(); // optional: send new LUT immediately for debugging
+    // 
+		
+		// FlowLUT_SendToUSB(); // optional: send new LUT immediately for debugging
 }
