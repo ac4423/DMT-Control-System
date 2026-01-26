@@ -1,0 +1,5 @@
+../Core/Src/led_strip.c:20:20:delay_cycles	8	static
+../Core/Src/led_strip.c:27:6:LED_Strip_Init	40	static
+../Core/Src/led_strip.c:40:6:LED_Strip_SetColorAll	8	static
+../Core/Src/led_strip.c:49:6:LED_Strip_SendBuffer	32	static,ignoring_inline_asm
+../Core/Src/led_strip.c:78:6:LED_Strip_Update	0	static

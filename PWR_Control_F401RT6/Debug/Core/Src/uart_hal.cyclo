@@ -1,0 +1,9 @@
+../Core/Src/uart_hal.c:24:29:_get_port	4
+../Core/Src/uart_hal.c:31:24:_nxt	1
+../Core/Src/uart_hal.c:33:6:UartHAL_Attach	2
+../Core/Src/uart_hal.c:46:6:UartHAL_EnableRxIRQ	4
+../Core/Src/uart_hal.c:53:6:UartHAL_FlushRx	3
+../Core/Src/uart_hal.c:61:9:UartHAL_Read	4
+../Core/Src/uart_hal.c:74:10:UartHAL_Send	8
+../Core/Src/uart_hal.c:94:6:UartHAL_IRQHandler	8
+../Core/Src/uart_hal.c:129:10:UartHAL_RxAvailable	4

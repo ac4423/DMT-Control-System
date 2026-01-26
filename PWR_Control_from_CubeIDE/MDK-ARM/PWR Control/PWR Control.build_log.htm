@@ -1,0 +1,85 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: µVision V5.43.1.0
+Copyright (C) 2025 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: Andrei Chernolesskiy, Imperial College London, LIC=----
+ 
+Tool Versions:
+Toolchain:       MDK-Lite  Version: 5.43.0.0
+Toolchain Path:  C:\Users\andre\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin
+C Compiler:      ArmClang.exe V6.24
+Assembler:       Armasm.exe V6.24
+Linker/Locator:  ArmLink.exe V6.24
+Library Manager: ArmAr.exe V6.24
+Hex Converter:   FromElf.exe V6.24
+CPU DLL:         SARMCM3.DLL V5.43.0.0
+Dialog DLL:      DCM.DLL V1.17.5.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.3.1.0
+Dialog DLL:      TCM.DLL V1.56.6.0
+ 
+<h2>Project:</h2>
+C:\Users\andre\Documents\ME3\DMT\DMT-Control-System\PWR_Control_from_CubeIDE\MDK-ARM\PWR Control.uvprojx
+Project File Date:  01/26/2026
+
+<h2>Output:</h2>
+*** Using Compiler 'V6.24', folder: 'C:\Users\andre\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin'
+Build target 'PWR Control'
+compiling config.c...
+compiling main.c...
+compiling flow_lut.c...
+../Core/Src/usb_debug.c(61): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   61 |                        "\r\nLONGTERM_DUMP,count=%lu\r\n", count);
+      |                                                 ~~~       ^~~~~
+      |                                                 %u
+../Core/Src/usb_debug.c(74): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   74 |             len = snprintf(line, sizeof(line), "%lu,OVERFLOW\r\n", i);
+      |                                                 ~~~                ^
+      |                                                 %u
+../Core/Src/usb_debug.c(78): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   78 |             len = snprintf(line, sizeof(line), "%lu,%u\r\n", i, v);
+      |                                                 ~~~          ^
+      |                                                 %u
+../Core/Src/usb_debug.c(98): warning: format specifies type 'unsigned long' but the argument has type 'size_t' (aka 'unsigned int') [-Wformat]
+   97 |         int len = snprintf(msg, sizeof(msg), "LUT[%lu]: %.3f L/min -> Duty %u\r\n",
+      |                                                   ~~~
+      |                                                   %zu
+   98 |                            i, FlowLUT.points[i].flow_lmin, FlowLUT.points[i].duty);
+      |                            ^
+4 warnings generated.
+compiling usb_debug.c...
+compiling injection_and_flow.c...
+linking...
+PWR Control\PWR Control.axf: error: L6050U: The code size of this image (33152 bytes) exceeds the maximum allowed for this version of the linker.
+Finished: 0 information, 0 warning, 0 error and 1 fatal error messages.
+"PWR Control\PWR Control.axf" - 1 Error(s), 4 Warning(s).
+
+<h2>Software Packages used:</h2>
+
+Package Vendor: ARM
+                https://www.keil.com/pack/ARM.CMSIS.6.3.0.pack
+                ARM::CMSIS@6.3.0
+                CMSIS (Common Microcontroller Software Interface Standard)
+   * Component: CORE Version: 6.2.0
+
+Package Vendor: Keil
+                https://www.keil.com/pack/Keil.STM32F1xx_DFP.2.4.1.pack
+                Keil::STM32F1xx_DFP@2.4.1
+                STMicroelectronics STM32F1 Series Device Support, Drivers and Examples
+
+<h2>Collection of Component include folders:</h2>
+  ./RTE/_PWR_Control
+  C:/Users/andre/AppData/Local/Arm/Packs/ARM/CMSIS/6.3.0/CMSIS/Core/Include
+  C:/Users/andre/AppData/Local/Arm/Packs/Keil/STM32F1xx_DFP/2.4.1/Device/Include
+
+<h2>Collection of Component Files used:</h2>
+
+   * Component: ARM::CMSIS:CORE@6.2.0
+      Include file:  CMSIS/Core/Include/tz_context.h
+Target not created.
+Build Time Elapsed:  00:00:01
+</pre>
+</body>
+</html>

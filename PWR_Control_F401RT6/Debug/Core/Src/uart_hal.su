@@ -1,0 +1,9 @@
+../Core/Src/uart_hal.c:24:29:_get_port	16	static
+../Core/Src/uart_hal.c:31:24:_nxt	16	static
+../Core/Src/uart_hal.c:33:6:UartHAL_Attach	24	static
+../Core/Src/uart_hal.c:46:6:UartHAL_EnableRxIRQ	24	static
+../Core/Src/uart_hal.c:53:6:UartHAL_FlushRx	24	static,ignoring_inline_asm
+../Core/Src/uart_hal.c:61:9:UartHAL_Read	24	static,ignoring_inline_asm
+../Core/Src/uart_hal.c:74:10:UartHAL_Send	40	static,ignoring_inline_asm
+../Core/Src/uart_hal.c:94:6:UartHAL_IRQHandler	32	static
+../Core/Src/uart_hal.c:129:10:UartHAL_RxAvailable	24	static,ignoring_inline_asm

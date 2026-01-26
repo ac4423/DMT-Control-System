@@ -1,0 +1,2 @@
+../Core/Src/usb_debug.c:41:6:Dump_LongTerm_Memory_USB	136	static,ignoring_inline_asm
+../Core/Src/usb_debug.c:11:6:USB_serial_send_debug	120	static

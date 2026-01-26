@@ -1,0 +1,5 @@
+../Core/Src/led_strip.c:20:20:delay_cycles	2
+../Core/Src/led_strip.c:27:6:LED_Strip_Init	1
+../Core/Src/led_strip.c:40:6:LED_Strip_SetColorAll	2
+../Core/Src/led_strip.c:49:6:LED_Strip_SendBuffer	4
+../Core/Src/led_strip.c:78:6:LED_Strip_Update	1

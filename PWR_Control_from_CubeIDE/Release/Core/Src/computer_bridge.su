@@ -1,0 +1,2 @@
+../Core/Src/computer_bridge.c:16:6:check_start	8	static
+../Core/Src/computer_bridge.c:24:6:transmit_data	8	static
