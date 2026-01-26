@@ -28,4 +28,4 @@ pwr\ control/injection_and_flow.o: ..\Core\Src\injection_and_flow.c \
   ..\Core\Inc\injection_and_flow.h ..\Core\Inc\CONFIG.H \
   ..\Core\Inc\tim.h ..\Core\Inc\usart.h ..\USB_DEVICE\App\usb_device.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_def.h \
-  ..\USB_DEVICE\Target\usbd_conf.h
+  ..\USB_DEVICE\Target\usbd_conf.h ..\Core\Inc\flow_lut.h

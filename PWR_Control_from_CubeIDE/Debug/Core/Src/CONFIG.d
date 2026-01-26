@@ -1,4 +1,4 @@
-Core/Src/CONFIG.o: ../Core/Src/CONFIG.c \
+Core/Src/config.o: ../Core/Src/config.c \
  C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_from_CubeIDE/Core/Inc/config.h \
  C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_from_CubeIDE/Core/Inc/usb_debug.h \
  C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_from_CubeIDE/Core/Inc/main.h \

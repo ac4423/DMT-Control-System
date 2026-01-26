@@ -22,13 +22,38 @@ Dialog DLL:      TCM.DLL V1.56.6.0
  
 <h2>Project:</h2>
 C:\Users\andre\Documents\ME3\DMT\DMT-Control-System\PWR_Control_from_CubeIDE\MDK-ARM\PWR Control.uvprojx
-Project File Date:  01/25/2026
+Project File Date:  01/26/2026
 
 <h2>Output:</h2>
 *** Using Compiler 'V6.24', folder: 'C:\Users\andre\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin'
 Build target 'PWR Control'
-Note: source file '..\Core\Src\CONFIG.c' - object file renamed from 'PWR Control\CONFIG.o' to 'PWR Control\config_1.o'.
-"PWR Control\PWR Control.axf" - 0 Error(s), 0 Warning(s).
+../Core/Src/usb_debug.c(61): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   61 |                        "\r\nLONGTERM_DUMP,count=%lu\r\n", count);
+      |                                                 ~~~       ^~~~~
+      |                                                 %u
+../Core/Src/usb_debug.c(74): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   74 |             len = snprintf(line, sizeof(line), "%lu,OVERFLOW\r\n", i);
+      |                                                 ~~~                ^
+      |                                                 %u
+../Core/Src/usb_debug.c(78): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
+   78 |             len = snprintf(line, sizeof(line), "%lu,%u\r\n", i, v);
+      |                                                 ~~~          ^
+      |                                                 %u
+../Core/Src/usb_debug.c(98): warning: format specifies type 'unsigned long' but the argument has type 'size_t' (aka 'unsigned int') [-Wformat]
+   97 |         int len = snprintf(msg, sizeof(msg), "LUT[%lu]: %.3f L/min -> Duty %u\r\n",
+      |                                                   ~~~
+      |                                                   %zu
+   98 |                            i, FlowLUT.points[i].flow_lmin, FlowLUT.points[i].duty);
+      |                            ^
+4 warnings generated.
+compiling usb_debug.c...
+compiling flow_lut.c...
+compiling main.c...
+compiling injection_and_flow.c...
+linking...
+Program Size: Code=29752 RO-data=604 RW-data=76 ZI-data=22572  
+FromELF: creating hex file...
+"PWR Control\PWR Control.axf" - 0 Error(s), 4 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -52,7 +77,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE@6.2.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:00
+Build Time Elapsed:  00:00:01
 </pre>
 </body>
 </html>

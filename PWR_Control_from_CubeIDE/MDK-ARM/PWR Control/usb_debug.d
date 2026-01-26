@@ -31,4 +31,5 @@ pwr\ control/usb_debug.o: ..\Core\Src\usb_debug.c ..\Core\Inc\usb_debug.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ioreq.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_core.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ctlreq.h \
-  ..\Core\Inc\injection_and_flow.h ..\Core\Inc\CONFIG.H
+  ..\Core\Inc\injection_and_flow.h ..\Core\Inc\CONFIG.H \
+  ..\Core\Inc\flow_lut.h

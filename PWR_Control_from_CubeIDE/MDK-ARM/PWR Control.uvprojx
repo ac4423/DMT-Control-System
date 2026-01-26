@@ -425,16 +425,6 @@
               <FilePath>..\Core\Src\computer_bridge.c</FilePath>
             </File>
             <File>
-              <FileName>CONFIG.h</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Inc\CONFIG.h</FilePath>
-            </File>
-            <File>
-              <FileName>CONFIG.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Src\CONFIG.c</FilePath>
-            </File>
-            <File>
               <FileName>injection_and_flow.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Core\Src\injection_and_flow.c</FilePath>
@@ -575,6 +565,16 @@
               <FileName>stm32f1xx_hal_msp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_hal_msp.c</FilePath>
+            </File>
+            <File>
+              <FileName>flow_lut.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\flow_lut.c</FilePath>
+            </File>
+            <File>
+              <FileName>config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\config.c</FilePath>
             </File>
           </Files>
         </Group>

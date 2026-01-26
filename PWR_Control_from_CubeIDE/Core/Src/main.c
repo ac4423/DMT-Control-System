@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+// #include "cmsis_os.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -32,7 +33,7 @@
 #include "motor_control.h"
 #include "computer_bridge.h"
 #include "uart_hal.h"
-#include "CONFIG.h"
+#include "config.h"
 #include "injection_and_flow.h"
 #include "usb_debug.h"
 /* USER CODE END Includes */
@@ -77,6 +78,7 @@ uint32_t usb_serial_timer = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -120,7 +122,6 @@ int main(void)
   MX_TIM6_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
-  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 	
   HAL_TIM_Base_Start_IT(&htim6); // start TIM6 system clock
@@ -161,6 +162,15 @@ int main(void)
 	#endif
   
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  // osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
+  // MX_FREERTOS_Init();
+
+  /* Start scheduler */
+  // osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -274,9 +284,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 						usb_serial_flag = 1;
         }
 				
-				if (++pump_counter >= pump_ticks_threshold) {
-						pump_counter = 0;
-						pump_flag = 1;
+				if (++Pump_Control.pump_counter >= pump_ticks_threshold) {
+						Pump_Control.pump_counter = 0;
+						Pump_Control.pump_flag = 1;
         }
 				
         if (run_state) {
