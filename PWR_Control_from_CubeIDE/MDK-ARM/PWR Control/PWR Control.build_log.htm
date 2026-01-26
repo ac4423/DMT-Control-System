@@ -27,6 +27,9 @@ Project File Date:  01/26/2026
 <h2>Output:</h2>
 *** Using Compiler 'V6.24', folder: 'C:\Users\andre\AppData\Local\Keil_v5\ARM\ARMCLANG\Bin'
 Build target 'PWR Control'
+compiling config.c...
+compiling main.c...
+compiling flow_lut.c...
 ../Core/Src/usb_debug.c(61): warning: format specifies type 'unsigned long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]
    61 |                        "\r\nLONGTERM_DUMP,count=%lu\r\n", count);
       |                                                 ~~~       ^~~~~
@@ -47,13 +50,11 @@ Build target 'PWR Control'
       |                            ^
 4 warnings generated.
 compiling usb_debug.c...
-compiling flow_lut.c...
-compiling main.c...
 compiling injection_and_flow.c...
 linking...
-Program Size: Code=29752 RO-data=604 RW-data=76 ZI-data=22572  
-FromELF: creating hex file...
-"PWR Control\PWR Control.axf" - 0 Error(s), 4 Warning(s).
+PWR Control\PWR Control.axf: error: L6050U: The code size of this image (33152 bytes) exceeds the maximum allowed for this version of the linker.
+Finished: 0 information, 0 warning, 0 error and 1 fatal error messages.
+"PWR Control\PWR Control.axf" - 1 Error(s), 4 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -77,6 +78,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE@6.2.0
       Include file:  CMSIS/Core/Include/tz_context.h
+Target not created.
 Build Time Elapsed:  00:00:01
 </pre>
 </body>

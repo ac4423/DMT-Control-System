@@ -10,10 +10,10 @@
 int8_t usb_serial_flag;
 
 void USB_serial_send_debug() {
-	// if (stream_enabled) {
-	if (1) {
-		// if (usb_serial_flag) {
-		if (1) {
+	if (stream_enabled) {
+	// if (1) {
+		if (usb_serial_flag) {
+		// if (1) {
 		
 		usb_serial_flag = 0;
 		

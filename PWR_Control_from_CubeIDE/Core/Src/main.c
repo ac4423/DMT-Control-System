@@ -122,6 +122,7 @@ int main(void)
   MX_TIM6_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 	
   HAL_TIM_Base_Start_IT(&htim6); // start TIM6 system clock
