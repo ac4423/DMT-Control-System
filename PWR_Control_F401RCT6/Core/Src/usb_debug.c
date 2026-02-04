@@ -13,35 +13,36 @@
 int8_t usb_serial_flag;
 
 void USB_serial_send_debug() {
-	if (stream_enabled) {
-	// if (1) {
-		if (usb_serial_flag) {
-		// if (1) {
-		
-		usb_serial_flag = 0;
-		
-		FlowMeter_UpdateInstantaneous();
-		FlowMeter_UpdateTotal();
-		
-		float flow = FlowMeter_GetFlow_Lmin();
-		float volume = FlowMeter_GetTotalLitres();
+    if (stream_enabled) {
+        if (usb_serial_flag) {
 
-		char msg[96];
-		int len = snprintf(msg, sizeof(msg),
-				"Flow: %.3f L/min | Volume: %.4f L\r\n",
-				flow, volume);
+            usb_serial_flag = 0;
 
-		CDC_Transmit_FS((uint8_t*)msg, len);
-		}
-	}
-	
-	if (request_dump_long_term)
+            FlowMeter_UpdateInstantaneous();
+            FlowMeter_UpdateTotal();
+
+            uint32_t flow_mlmin = FlowMeter_GetFlow_mLmin();
+            uint32_t total_ml = FlowMeter_GetTotal_mL();
+
+            float flow_lmin = (float)flow_mlmin / 1000.0f;
+            float volume_l = (float)total_ml / 1000.0f;
+
+            char msg[96];
+            int len = snprintf(msg, sizeof(msg),
+                    "Flow: %.3f L/min | Volume: %.4f L\r\n",
+                    flow_lmin, volume_l);
+
+            CDC_Transmit_FS((uint8_t*)msg, len);
+        }
+    }
+
+    if (request_dump_long_term)
     {
         request_dump_long_term = 0;
         Dump_LongTerm_Memory_USB();
         return;
     }
-	
+
 }
 
 void Dump_LongTerm_Memory_USB(void)
@@ -98,7 +99,7 @@ void FlowLUT_SendToUSB(void)
     char msg[64];
     for (size_t i = 0; i < FlowLUT.n_points; i++) {
         int len = snprintf(msg, sizeof(msg), "LUT[%lu]: %.3f L/min -> Duty %u\r\n",
-                           i, FlowLUT.points[i].flow_lmin, FlowLUT.points[i].duty);
+                           i, (float)FlowLUT.points[i].flow_mlmin / 1000.0f, FlowLUT.points[i].duty);
         while (CDC_Transmit_FS((uint8_t*)msg, len) == USBD_BUSY)
             HAL_Delay(1);
     }

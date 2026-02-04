@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-void FlowLUT_SendToUSB(void);
-
 /* --- Duty limits --- */
 #define PUMP_DUTY_MIN     0U
 #define PUMP_DUTY_MAX     49U
@@ -14,7 +12,7 @@ void FlowLUT_SendToUSB(void);
 
 /* --- Lookup table structure --- */
 typedef struct {
-    float flow_lmin;    // L/min
+	uint32_t flow_mlmin;    // mL/min
     uint16_t duty;      // 0..49
 } FlowLUT_Point_t;
 
@@ -36,4 +34,6 @@ static FlowLUT_Point_t FlowLUT_Hardcoded[LUT_SIZE] = {
 
 static FlowLUT_t FlowLUT = {LUT_SIZE, FlowLUT_Hardcoded};
 
-uint16_t FlowLUT_GetDutyForFlow(float desired_flow);
+void FlowLUT_SendToUSB(void);
+
+uint16_t FlowLUT_GetDutyForFlow(uint32_t desired_flow);

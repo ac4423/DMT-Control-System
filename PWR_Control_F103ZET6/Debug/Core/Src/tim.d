@@ -1,8 +1,8 @@
 Core/Src/tim.o: ../Core/Src/tim.c \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h \
@@ -29,10 +29,10 @@ Core/Src/tim.o: ../Core/Src/tim.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h:

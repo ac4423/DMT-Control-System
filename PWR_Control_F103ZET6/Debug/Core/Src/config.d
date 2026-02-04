@@ -1,9 +1,9 @@
-Core/Src/CONFIG.o: ../Core/Src/CONFIG.c \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
+Core/Src/config.o: ../Core/Src/config.c \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h \
@@ -30,11 +30,11 @@ Core/Src/CONFIG.o: ../Core/Src/CONFIG.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h:

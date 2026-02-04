@@ -28,7 +28,7 @@ Core/Src/flow_lut.o: ../Core/Src/flow_lut.c ../Core/Inc/flow_lut.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- ../Core/Inc/CONFIG.H ../Core/Inc/usb_debug.h ../Core/Inc/tim.h
+ ../Core/Inc/config.h ../Core/Inc/usb_debug.h ../Core/Inc/tim.h
 ../Core/Inc/flow_lut.h:
 ../Core/Inc/injection_and_flow.h:
 ../Core/Inc/main.h:
@@ -60,6 +60,6 @@ Core/Src/flow_lut.o: ../Core/Src/flow_lut.c ../Core/Inc/flow_lut.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
-../Core/Inc/CONFIG.H:
+../Core/Inc/config.h:
 ../Core/Inc/usb_debug.h:
 ../Core/Inc/tim.h:

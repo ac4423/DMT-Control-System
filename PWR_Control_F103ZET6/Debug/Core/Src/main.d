@@ -1,7 +1,7 @@
 Core/Src/main.o: ../Core/Src/main.c \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h \
@@ -28,26 +28,26 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usart.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usart.h \
  ../USB_DEVICE/App/usb_device.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
  ../USB_DEVICE/Target/usbd_conf.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/gpio.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/hall_sensor.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/lasers.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/mks42d.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/motor_control.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/computer_bridge.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/injection_and_flow.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/CONFIG.H \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/gpio.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/hall_sensor.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/lasers.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/mks42d.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/motor_control.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/computer_bridge.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/injection_and_flow.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h:
@@ -74,20 +74,20 @@ C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/In
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usart.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/tim.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usart.h:
 ../USB_DEVICE/App/usb_device.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
 ../USB_DEVICE/Target/usbd_conf.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/gpio.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/hall_sensor.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/lasers.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/mks42d.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/motor_control.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/computer_bridge.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/injection_and_flow.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/CONFIG.H:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/gpio.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/hall_sensor.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/lasers.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/mks42d.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/motor_control.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/computer_bridge.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/injection_and_flow.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/config.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/usb_debug.h:

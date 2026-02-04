@@ -6,7 +6,7 @@
 #include "uart_hal.h"
 #include "motor_control.h"
 
-bool run_state = 0;
+bool run_state = 1;
 
 static uint8_t txBuffer[64];
 static uint8_t rxBuffer[64];

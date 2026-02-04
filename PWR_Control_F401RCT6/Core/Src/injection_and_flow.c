@@ -18,7 +18,7 @@ volatile PumpControl_t Pump_Control;
 /* --- External HAL tick function --- */
 extern uint32_t HAL_GetTick(void);
 
-/* debug flag */
+/* debug flag definitions*/
 volatile uint8_t debug_flag_1;
 volatile uint16_t debug_ticker_1;
 
@@ -33,39 +33,39 @@ void InjectionAndFlow_Init(void)
     Flow_State.short_term_index = 0;
     Flow_State.short_term_count = 0;
 
-    Flow_State.last_flow_lmin = 0.0f;
-    Flow_State.total_litres = 0.0f;
+    Flow_State.last_flow_mlmin = 0;
+    Flow_State.total_ml = 0;
 
     Pump_Control.duty_pump = 0;
-		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);  // Ensure PWM = 0
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);  // Ensure PWM = 0
     Pump_Control.pump_flag = 0;
     Pump_Control.pump_counter = 0;
 
-		#if RECORD_PULSE_TIMESTAMPS
-				Flow_State.pulse_delta_index = 0;
-				Flow_State.delta_accumulator = 0;
-		#endif
-	
-		#if ENABLE_PI_CONTROL
-				Pump_Control.kp = PI_Kp;    // initial proportional gain
-				Pump_Control.ki = PI_Ki;    // initial integral gain
-				Pump_Control.pi_integral = 0.0f;
-		#endif
+    #if RECORD_PULSE_TIMESTAMPS
+        Flow_State.pulse_delta_index = 0;
+        Flow_State.delta_accumulator = 0;
+    #endif
+
+    #if ENABLE_PI_CONTROL
+        Pump_Control.kp = PI_Kp;    // initial proportional gain
+        Pump_Control.ki = PI_Ki;    // initial integral gain
+        Pump_Control.pi_integral = 0.0f;
+    #endif
 
     __enable_irq();
-		
-		//clear the buffer and flags for incoming desired flow requests...
-		for (uint16_t i = 0; i < FLOW_SCHEDULE_LEN; i++) {
-				Pump_Control.flow_schedule[i] = 0.0f;
-		}
-		Pump_Control.schedule_head = 0;
-		Pump_Control.schedule_tail = 0;
-		Pump_Control.instantaneous_desired_flow = 0.0f;
-		
-		// --- Clear short-term pulse buffer ---
-		for (uint16_t i = 0; i < SHORT_TERM_PULSE_BUFFER_SIZE; i++) {
-				Flow_State.short_term_pulses[i] = UNPOPULATED_ELEMENT_MARKER;
-		}
+
+    //clear the buffer and flags for incoming desired flow requests...
+    for (uint16_t i = 0; i < FLOW_SCHEDULE_LEN; i++) {
+        Pump_Control.flow_schedule[i] = 0;
+    }
+    Pump_Control.schedule_head = 0;
+    Pump_Control.schedule_tail = 0;
+    Pump_Control.instantaneous_desired_flow = 0;
+
+    // --- Clear short-term pulse buffer ---
+    for (uint16_t i = 0; i < SHORT_TERM_PULSE_BUFFER_SIZE; i++) {
+        Flow_State.short_term_pulses[i] = UNPOPULATED_ELEMENT_MARKER;
+    }
 }
 
 #if RECORD_PULSE_TIMESTAMPS
@@ -101,7 +101,7 @@ void FlowMeter_TickHook(void)
 #endif
 
 /**
- * Call on every pulse (TIM5 IC interrupt)
+ * Call on every pulse (TIM3 IC interrupt)
  */
 void FlowMeter_PulseCallback(void)
 {
@@ -133,7 +133,7 @@ void FlowMeter_PulseCallback(void)
 }
 
 /**
- * Update instantaneous flow (L/min)
+ * Update instantaneous flow (mL/min)
  */
 void FlowMeter_UpdateInstantaneous(void)
 {
@@ -143,7 +143,7 @@ void FlowMeter_UpdateInstantaneous(void)
     __enable_irq();
 
     if (count == 0) {
-        Flow_State.last_flow_lmin = 0.0f;
+        Flow_State.last_flow_mlmin = 0;
         return;
     }
 
@@ -162,7 +162,7 @@ void FlowMeter_UpdateInstantaneous(void)
     }
 
     if (pulses_in_window < 2) {
-        Flow_State.last_flow_lmin = 0.0f;
+        Flow_State.last_flow_mlmin = 0;
         return;
     }
 
@@ -182,36 +182,51 @@ void FlowMeter_UpdateInstantaneous(void)
     uint32_t delta_ms = t_last - t_first;
     if (delta_ms == 0) delta_ms = 1;
 
-    float litres =
-        (float)(pulses_in_window - 1) / FLOW_PULSES_PER_LITRE;
+    /*
+        Original:
+            litres = (pulses_in_window - 1) / FLOW_PULSES_PER_LITRE;
+            flow_lmin = litres / (delta_ms / 60000);
 
-    Flow_State.last_flow_lmin =
-        litres / ((float)delta_ms / 60000.0f);
+        New:
+            ml = litres * 1000
+            flow_mlmin = ml / (delta_ms / 60000)
+                       = ml * 60000 / delta_ms
+    */
+
+    uint32_t ml =
+        ((uint32_t)(pulses_in_window - 1) * 1000U) / (uint32_t)FLOW_PULSES_PER_LITRE;
+
+    Flow_State.last_flow_mlmin =
+        (uint32_t)(((uint64_t)ml * 60000ULL) / (uint64_t)delta_ms);
 }
 
 /**
- * Update cumulative total volume
+ * Update cumulative total volume (mL)
  */
 void FlowMeter_UpdateTotal(void)
 {
-    Flow_State.total_litres =
-        (float)Flow_State.pulse_count_total / (float)FLOW_PULSES_PER_LITRE;
+    Flow_State.total_ml =
+        ((uint32_t)Flow_State.pulse_count_total * 1000U) / (uint32_t)FLOW_PULSES_PER_LITRE;
 }
 
-float FlowMeter_GetFlow_Lmin(void)
+uint32_t FlowMeter_GetFlow_mLmin(void)
 {
-    return Flow_State.last_flow_lmin;
+    return Flow_State.last_flow_mlmin;
 }
 
-float FlowMeter_GetTotalLitres(void)
+uint32_t FlowMeter_GetTotal_mL(void)
 {
-    return Flow_State.total_litres;
+    return Flow_State.total_ml;
 }
 
 #if ENABLE_PI_CONTROL
 void PumpControl_UpdatePI(void)
 {
-    float error = Pump_Control.instantaneous_desired_flow - Flow_State.last_flow_lmin;
+    /*
+        PI loop still operates in float internally, but all flow values are now in mL/min integers.
+        Convert to float only for controller math.
+    */
+    float error = (float)Pump_Control.instantaneous_desired_flow - (float)Flow_State.last_flow_mlmin;
 
     // Convert sample time to seconds
     float dt = (float)PUMP_SAMPLE_TIME_MS / 1000.0f;
@@ -234,41 +249,40 @@ void update_pump_state(void)
 {
     if (Pump_Control.pump_flag) {
         Pump_Control.pump_flag = 0;
-			
-		// --- Update desired flow from schedule safely with MIN_LOOKAHEAD ---
-		uint16_t head = Pump_Control.schedule_head;
-		uint16_t tail = Pump_Control.schedule_tail;
 
-		// Compute next head index
-		uint16_t next_head = (head + 1) % FLOW_SCHEDULE_LEN;
+        // --- Update desired flow from schedule safely with MIN_LOOKAHEAD ---
+        uint16_t head = Pump_Control.schedule_head;
+        uint16_t tail = Pump_Control.schedule_tail;
 
-		// Compute safe tail position (distance must be > MIN_LOOKAHEAD)
-		uint16_t distance;
-		if (tail >= head)
-				distance = tail - head;
-		else
-				distance = FLOW_SCHEDULE_LEN - (head - tail);
+        // Compute next head index
+        uint16_t next_head = (head + 1) % FLOW_SCHEDULE_LEN;
 
-		if (distance > FLOW_SCHEDULE_MIN_LOOKAHEAD) {
-				// Safe to advance head and consume next value
-				Pump_Control.instantaneous_desired_flow = Pump_Control.flow_schedule[head];
-				Pump_Control.schedule_head = next_head;
-		} else {
-				// Buffer too low: hold last value
-				// instantaneous_desired_flow unchanged
-		}
-		
-		  float flow_diff = Pump_Control.instantaneous_desired_flow - Flow_State.last_flow_lmin;
+        // Compute safe tail position (distance must be > MIN_LOOKAHEAD)
+        uint16_t distance;
+        if (tail >= head)
+            distance = tail - head;
+        else
+            distance = FLOW_SCHEDULE_LEN - (head - tail);
 
-		
-		#if ENABLE_LOOKUP_TABLE
-        if (fabsf(flow_diff) >= FLOW_DIFF_LUT_THRESHOLD) {
+        if (distance > FLOW_SCHEDULE_MIN_LOOKAHEAD) {
+            // Safe to advance head and consume next value
+            Pump_Control.instantaneous_desired_flow = Pump_Control.flow_schedule[head];
+            Pump_Control.schedule_head = next_head;
+        } else {
+            // Buffer too low: hold last value
+            // instantaneous_desired_flow unchanged
+        }
+
+        int32_t flow_diff = (int32_t)Pump_Control.instantaneous_desired_flow - (int32_t)Flow_State.last_flow_mlmin;
+
+        #if ENABLE_LOOKUP_TABLE
+        if (abs(flow_diff) >= FLOW_DIFF_LUT_THRESHOLD_MLMIN) {
             // Only use LUT if difference is large
             Pump_Control.duty_pump = FlowLUT_GetDutyForFlow(Pump_Control.instantaneous_desired_flow);
 
             // Skip PI for this tick
         }
-			#endif
+        #endif
 
         #if ENABLE_PI_CONTROL
             // Use PI controller only when LUT not triggered
@@ -276,8 +290,8 @@ void update_pump_state(void)
         #endif
 
         // Apply new pump duty
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump);
-		}
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, Pump_Control.duty_pump);
+    }
 }
 
 // --------------- GPT-generated API: ------------------- //
@@ -293,7 +307,7 @@ inline uint16_t FlowSchedule_Depth(void)
         return FLOW_SCHEDULE_LEN - (head - tail);
 }
 
-uint8_t FlowSchedule_Push(float flow_lmin)
+uint8_t FlowSchedule_Push(uint32_t flow_mlmin)
 {
     uint16_t head = Pump_Control.schedule_head;
     uint16_t tail = Pump_Control.schedule_tail;
@@ -302,14 +316,14 @@ uint8_t FlowSchedule_Push(float flow_lmin)
     if (next == head)
         return 0; // buffer full
 
-    Pump_Control.flow_schedule[tail] = flow_lmin;
+    Pump_Control.flow_schedule[tail] = flow_mlmin;
     __DMB(); // ensure write completes before tail moves
     Pump_Control.schedule_tail = next;
 
     return 1;
 }
 
-uint8_t FlowSchedule_PushImmediate(float flow_lmin)
+uint8_t FlowSchedule_PushImmediate(uint32_t flow_mlmin)
 {
     __disable_irq();
     Pump_Control.schedule_head = 0;
@@ -317,7 +331,7 @@ uint8_t FlowSchedule_PushImmediate(float flow_lmin)
 
     // Push same value enough times to satisfy lookahead
     for (uint16_t i = 0; i < FLOW_SCHEDULE_MIN_LOOKAHEAD; i++) {
-        Pump_Control.flow_schedule[i] = flow_lmin;
+        Pump_Control.flow_schedule[i] = flow_mlmin;
     }
     Pump_Control.schedule_tail = FLOW_SCHEDULE_MIN_LOOKAHEAD;
     __enable_irq();
@@ -361,9 +375,3 @@ void GenerateSawWaveDebug(void)
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, saw_pwm_duty);
     }
 }
-
-
-
-
-
-

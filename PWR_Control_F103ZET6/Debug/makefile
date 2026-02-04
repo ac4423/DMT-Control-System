@@ -64,8 +64,8 @@ all: main-build
 main-build: PWR_Control_F103ZET6.elf secondary-outputs
 
 # Tool invocations
-PWR_Control_F103ZET6.elf PWR_Control_F103ZET6.map: $(OBJS) $(USER_OBJS) C:\Users\andre\Documents\ME3\DMT\DMT-Control-System\PWR_Control_F103ZET6\STM32F103ZETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "PWR_Control_F103ZET6.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\andre\Documents\ME3\DMT\DMT-Control-System\PWR_Control_F103ZET6\STM32F103ZETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWR_Control_F103ZET6.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+PWR_Control_F103ZET6.elf PWR_Control_F103ZET6.map: $(OBJS) $(USER_OBJS) /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/STM32F103ZETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "PWR_Control_F103ZET6.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/STM32F103ZETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="PWR_Control_F103ZET6.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

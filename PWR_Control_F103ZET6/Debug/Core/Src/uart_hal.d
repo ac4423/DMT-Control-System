@@ -1,5 +1,5 @@
 Core/Src/uart_hal.o: ../Core/Src/uart_hal.c \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xe.h \
  ../Drivers/CMSIS/Include/core_cm3.h \
@@ -8,7 +8,7 @@ Core/Src/uart_hal.o: ../Core/Src/uart_hal.c \
  ../Drivers/CMSIS/Include/cmsis_gcc.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h \
@@ -28,7 +28,7 @@ Core/Src/uart_hal.o: ../Core/Src/uart_hal.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/uart_hal.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xe.h:
 ../Drivers/CMSIS/Include/core_cm3.h:
@@ -37,7 +37,7 @@ C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/In
 ../Drivers/CMSIS/Include/cmsis_gcc.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h:

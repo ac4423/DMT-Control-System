@@ -49,7 +49,7 @@
 #define FLOW_SCHEDULE_MIN_LOOKAHEAD  0  // safety margin for UART latency // let's not play around with this and set it to zero for now...
 
 /* --- Flow LUT trigger threshold --- */
-#define FLOW_DIFF_LUT_THRESHOLD 0.5f  // litres per minute
+#define FLOW_DIFF_LUT_THRESHOLD_MLMIN 500  // millilitres per minute
 
 /* --- Duty limits --- */
 #define PUMP_DUTY_MIN     0U
@@ -60,8 +60,8 @@
 #define CAL_STABILIZE_MS  500      // wait time at each duty for flow to stabilize
 
 /* --- PI-control: --- */
-#define PI_Kp 2.0f;
-#define PI_Ki 1.0f;
+#define PI_Kp 0.002f
+#define PI_Ki 0.001f
 
 
 /* ================= extern declarations ================= */

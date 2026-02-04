@@ -81,6 +81,7 @@ void MX_USART6_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART6_Init 2 */
+  UartHAL_Attach(USART2);
 
   /* USER CODE END USART6_Init 2 */
 

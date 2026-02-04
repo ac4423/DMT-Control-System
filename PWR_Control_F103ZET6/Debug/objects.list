@@ -1,5 +1,5 @@
-"./Core/Src/CONFIG.o"
 "./Core/Src/computer_bridge.o"
+"./Core/Src/config.o"
 "./Core/Src/flow_lut.o"
 "./Core/Src/gpio.o"
 "./Core/Src/hall_sensor.o"

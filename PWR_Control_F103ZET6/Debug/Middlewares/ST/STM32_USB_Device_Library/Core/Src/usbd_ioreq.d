@@ -1,11 +1,11 @@
 Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o: \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
  ../USB_DEVICE/Target/usbd_conf.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h \
  ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h \
@@ -32,15 +32,15 @@ Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o: \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
- C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
+ /home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
 ../USB_DEVICE/Target/usbd_conf.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/main.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Core/Inc/stm32f1xx_hal_conf.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h:
 ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h:
@@ -67,6 +67,6 @@ C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Core/In
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
-C:/Users/andre/Documents/ME3/DMT/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
+/home/andrei/STM32Projects/DMT-Control-System/PWR_Control_F103ZET6/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:

@@ -3,7 +3,7 @@
 
 #include "main.h"
 #include <stdint.h>
-#include "CONFIG.H"
+#include "config.h"
 
 typedef struct
 {
@@ -17,8 +17,8 @@ typedef struct
     volatile uint16_t short_term_count;
 
     // --- Flow and volume ---
-    float last_flow_lmin;
-    float total_litres;
+    uint32_t last_flow_mlmin; // this has been renamed
+    uint32_t total_ml;
 
 #if RECORD_PULSE_TIMESTAMPS
     volatile uint16_t pulse_deltas[LONG_TERM_PULSE_ARRAY_CAPACITY];
@@ -35,7 +35,7 @@ typedef struct {
     uint16_t pump_counter;
 
     // --- Current active setpoint ---
-    float instantaneous_desired_flow; // litres per minute (applied this tick)
+    uint32_t instantaneous_desired_flow; // litres per minute (applied this tick)
 
     // --- PI controller ---
     float pi_integral;
@@ -43,7 +43,7 @@ typedef struct {
     float ki;
 
     // --- Unified flow schedule ring buffer ---
-    float flow_schedule[FLOW_SCHEDULE_LEN];  // desired flow for future ticks
+    uint32_t flow_schedule[FLOW_SCHEDULE_LEN];  // desired flow for future ticks
     volatile uint16_t schedule_head;         // next slot to consume
     volatile uint16_t schedule_tail;         // next slot to write
 
@@ -65,8 +65,8 @@ void FlowMeter_PulseCallback(void);
 void FlowMeter_UpdateInstantaneous(void);
 void FlowMeter_UpdateTotal(void);
 
-float FlowMeter_GetFlow_Lmin(void);
-float FlowMeter_GetTotalLitres(void);
+uint32_t FlowMeter_GetFlow_Lmin(void);
+uint32_t FlowMeter_GetTotalLitres(void);
 
 void update_pump_state(void);
 
@@ -79,8 +79,8 @@ void FlowMeter_TickHook(void);
 
 /* ================= Flow Schedule API ================= */
 
-uint8_t FlowSchedule_Push(float flow_lmin);
-uint8_t FlowSchedule_PushImmediate(float flow_lmin);
+uint8_t FlowSchedule_Push(uint32_t flow_lmin);
+uint8_t FlowSchedule_PushImmediate(uint32_t flow_lmin);
 uint16_t FlowSchedule_Depth(void);
 void FlowSchedule_Clear(void);
 
