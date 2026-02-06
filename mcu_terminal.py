@@ -66,11 +66,15 @@ class PacketParser:
         self.seq = 0
         self.length = 0
         self.payload = bytearray()
+        self.buffered_bytes = bytearray()  # collect bytes for invalid data
 
     def feed(self, b):
+        self.buffered_bytes.append(b)
+
         if self.state == "IDLE":
             if b == COMMS_HDR:
                 self.state = "TYPE"
+                self.buffered_bytes = bytearray([b])
         elif self.state == "TYPE":
             self.msg_type = b
             self.state = "SEQ"
@@ -83,7 +87,10 @@ class PacketParser:
             if self.length == 0:
                 self.state = "CRC"
             elif self.length > COMMS_MAX_PAYLOAD:
+                # invalid payload length
+                invalid_data = bytes(self.buffered_bytes)
                 self.reset()
+                return {"invalid": invalid_data}
             else:
                 self.state = "PAYLOAD"
         elif self.state == "PAYLOAD":
@@ -103,6 +110,9 @@ class PacketParser:
                     "payload": bytes(self.payload),
                     "crc": crc_recv,
                 }
+            else:
+                # CRC mismatch, report invalid
+                pkt = {"invalid": bytes(self.buffered_bytes)}
 
             self.reset()
             return pkt
@@ -147,31 +157,12 @@ class TerminalUI:
                 f" | Keys: [H]=Handshake [Q]=Quit "
             )
 
-            # Move cursor to top left, write status line, clear rest of line
-            sys.stdout.write("\033[H")              # cursor home
-            sys.stdout.write("\033[2K")             # clear line
-            sys.stdout.write(line[:120] + "\n")     # status bar
+            sys.stdout.write("\033[H\033[2K" + line[:120] + "\n")
             sys.stdout.flush()
 
     def print_packet_line(self, text):
         with self._lock:
-            # Save cursor position
-            sys.stdout.write("\033[s")
-
-            # Move cursor to line 2 (below status bar)
-            sys.stdout.write("\033[2;1H")
-
-            # Scroll region: everything except line 1
-            sys.stdout.write("\033[2;999r")
-
-            # Move cursor to bottom of scroll region
-            sys.stdout.write("\033[999;1H")
-
-            # Print packet line
-            sys.stdout.write(text + "\n")
-
-            # Restore cursor
-            sys.stdout.write("\033[u")
+            sys.stdout.write("\033[s\033[2;1H\033[2;999r\033[999;1H" + text + "\n\033[u")
             sys.stdout.flush()
 
     def update_state(self, state_byte):
@@ -201,15 +192,17 @@ def format_hex(b: bytes):
 
 
 def decode_packet(pkt, ui: TerminalUI):
+    if "invalid" in pkt:
+        ui.inc_bad()
+        return f"[RX INVALID] {format_hex(pkt['invalid'])}"
+
     msg_type = pkt["type"]
     seq = pkt["seq"]
     payload = pkt["payload"]
 
-    # default display
     desc = f"TYPE=0x{msg_type:02X} SEQ={seq:03d} LEN={len(payload):03d}"
 
     if msg_type in (MSG_ACK, MSG_NACK, MSG_HANDSHAKE_ACK):
-        # payload: timestamp(4), state(1), reserved(1 optional)
         if len(payload) >= 5:
             ts = u32_from_le(payload[0:4])
             st = payload[4]
@@ -220,7 +213,6 @@ def decode_packet(pkt, ui: TerminalUI):
                 ui.mark_handshake_ack()
 
     elif msg_type == MSG_HEARTBEAT:
-        # payload: timestamp(4), state(1), counter(1)
         if len(payload) >= 6:
             ts = u32_from_le(payload[0:4])
             st = payload[4]
@@ -230,7 +222,6 @@ def decode_packet(pkt, ui: TerminalUI):
             desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} HB_CTR={ctr}"
 
     elif msg_type == MSG_TELEMETRY_PUSH:
-        # payload: timestamp(4), state(1), flow(4), total(4) => 13 bytes
         if len(payload) >= 13:
             ts = u32_from_le(payload[0:4])
             st = payload[4]
@@ -239,9 +230,7 @@ def decode_packet(pkt, ui: TerminalUI):
             ui.update_state(st)
             desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} FLOW={flow}mL/min TOTAL={total}mL"
 
-    # show raw always
-    raw = format_hex(payload)
-    return f"[RX] {desc} | PAYLOAD: {raw}"
+    return f"[RX] {desc} | PAYLOAD: {format_hex(payload)}"
 
 
 def keyboard_thread(ui: TerminalUI, ser: serial.Serial, hb_ms, tel_ms, send_ack, extra_bytes, stop_event):
@@ -286,18 +275,17 @@ def keyboard_thread(ui: TerminalUI, ser: serial.Serial, hb_ms, tel_ms, send_ack,
                 seq = (seq + 1) & 0xFF
 
     finally:
-        # ALWAYS restore terminal
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 def main():
     parser = argparse.ArgumentParser(description="MCU Serial Monitor with Handshake Trigger (press H)")
-    parser.add_argument("--port", required=True, help="Serial port, e.g. /dev/ttyUSB0 or /dev/ttyACM0")
-    parser.add_argument("--baud", type=int, default=115200, help="Baud rate (default 115200)")
-    parser.add_argument("--hb", type=int, default=500, help="Heartbeat period (ms) to send in handshake")
-    parser.add_argument("--tel", type=int, default=1000, help="Telemetry period (ms) to send in handshake")
-    parser.add_argument("--send-ack", type=int, default=1, help="send_ack flag in handshake (0 or 1)")
-    parser.add_argument("--extra", default="", help="Extra bytes appended to handshake payload as hex string (e.g. 'AA55FF')")
+    parser.add_argument("--port", required=True)
+    parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--hb", type=int, default=500)
+    parser.add_argument("--tel", type=int, default=1000)
+    parser.add_argument("--send-ack", type=int, default=1)
+    parser.add_argument("--extra", default="")
 
     args = parser.parse_args()
 
@@ -308,9 +296,8 @@ def main():
     ui = TerminalUI()
     ui.clear_screen()
     ui.draw_status_bar()
-	
+
     stop_event = threading.Event()
-    
     kb = threading.Thread(
         target=keyboard_thread,
         args=(ui, ser, args.hb, args.tel, args.send_ack, extra_bytes, stop_event),
@@ -319,7 +306,6 @@ def main():
     kb.start()
 
     parser_obj = PacketParser()
-
     last_status_refresh = 0
 
     def sigint_handler(sig, frame):
@@ -335,8 +321,12 @@ def main():
                 for b in data:
                     pkt = parser_obj.feed(b)
                     if pkt is not None:
-                        ui.inc_packet()
-                        line = decode_packet(pkt, ui)
+                        if "invalid" in pkt:
+                            ui.inc_bad()
+                            line = f"[RX INVALID] {format_hex(pkt['invalid'])}"
+                        else:
+                            ui.inc_packet()
+                            line = decode_packet(pkt, ui)
                         ui.print_packet_line(line)
 
             now = time.time()
@@ -350,14 +340,10 @@ def main():
         stop_event.set()
         ui.running = False
         kb.join(timeout=1.0)
-
         ser.close()
-
-        # restore terminal scroll region + formatting
-        sys.stdout.write("\033[0m")
-        sys.stdout.write("\033[r")  # reset scrolling region
-        sys.stdout.write("\n")
+        sys.stdout.write("\033[0m\033[r\n")
         sys.stdout.flush()
+
 
 if __name__ == "__main__":
     main()

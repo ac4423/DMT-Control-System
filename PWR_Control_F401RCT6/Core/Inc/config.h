@@ -8,12 +8,15 @@
 
 #define SKIP_CRC_CHECK   1   // set to 1 to ignore CRC and accept all messages
 #define SKIP_STARTUP_SEQUENCE 1
+
 #define ENABLE_USB_SERIAL_DEBUG      0
 #define PWM_DEBUG 1
 #define RECORD_PULSE_TIMESTAMPS 1
+#define ENABLE_ECHO_DEBUG 1
 
 /* ================= Timing ================= */
 
+#define DEFAULT_HANDSHAKE_TIMEOUT 30000 // ms
 /*
  * TIM6 tick period in microseconds: the ISR will increment tim6_tick every TIM6_TICK_uS.
  * (Note: your code starts TIM2 in main but the conceptual "system tick" is here.)

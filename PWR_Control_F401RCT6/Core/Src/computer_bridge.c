@@ -23,5 +23,5 @@ static uint32_t last_telemetry_ms = 0;
 void ComputerBridge_Init(void) {
     // Ensure USART6 is prepared in MX_USART6_UART_Init() and call UartHAL_Attach there,
     // but Comms_Init here ensures it's attached if not already.
-    Comms_Init(USART6);
+    // Comms_Init(USART6);
 }

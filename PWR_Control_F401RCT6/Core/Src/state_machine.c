@@ -20,7 +20,7 @@
 static volatile SysState_t cur_state = SYS_STARTUP_SEQUENCE;
 
 /* handshake timeout: configured default here (ms) but could be added to secondary config later */
-static uint32_t handshake_timeout_ms = 5000;
+volatile uint32_t handshake_timeout_ms = DEFAULT_HANDSHAKE_TIMEOUT;
 
 /* store the tick when we entered pairing */
 static uint32_t pairing_enter_tick = 0;
@@ -101,7 +101,7 @@ static void RunStartupSequence(void) {
 
 void StateMachine_Init(void) {
     cur_state = SYS_STARTUP_SEQUENCE;
-    FlowSchedule_Clear();
+    // FlowSchedule_Clear();
     startup_step = 0;
     step_timer_tick = SYSTEM_TICK;
     pairing_enter_tick = 0;

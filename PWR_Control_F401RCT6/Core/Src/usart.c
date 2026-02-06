@@ -21,7 +21,11 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
+#include "stm32f4xx_hal_uart.h"
 #include "uart_hal.h"
+
+static uint8_t rxByte;
+
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart2;
@@ -40,7 +44,7 @@ void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 1000000;
+  huart2.Init.BaudRate = 256000;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -52,7 +56,8 @@ void MX_USART2_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART2_Init 2 */
-    UartHAL_Attach(USART2);
+  // UartHAL_EnableRxIRQ(USART2,1);
+  UartHAL_Attach(USART2);
   /* USER CODE END USART2_Init 2 */
 
 }
@@ -81,8 +86,19 @@ void MX_USART6_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART6_Init 2 */
+  // UartHAL_EnableRxIRQ(USART6,1);
   UartHAL_Attach(USART6);
 
+  // do this apparently:
+  // __HAL_UART_CLEAR_OREFLAG(&huart6);
+  // __HAL_UART_CLEAR_FEFLAG(&huart6);
+  // __HAL_UART_CLEAR_NEFLAG(&huart6);
+  // __HAL_UART_CLEAR_PEFLAG(&huart6);
+
+  // __HAL_UART_CLEAR_IDLEFLAG(&huart6);
+
+  // HAL_UART_Receive_IT(&huart6, &rxByte, 1);
+  //
   /* USER CODE END USART6_Init 2 */
 
 }
@@ -112,7 +128,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* USART2 interrupt Init */
-    HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(USART2_IRQn, 5, 5);
     HAL_NVIC_EnableIRQ(USART2_IRQn);
   /* USER CODE BEGIN USART2_MspInit 1 */
 

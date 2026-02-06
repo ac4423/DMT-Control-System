@@ -98,7 +98,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-   
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -125,8 +125,9 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
-	
-  HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
+
+
+	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // start TIM3 for PWM for injection pump
 	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1); // start TIM5 for flowmeter input capture.
 	
@@ -135,61 +136,42 @@ int main(void)
 	flags_init();
 	
 	// in main() after HAL and peripheral init:
-	Comms_Init(USART6); // set up comms
-	ComputerBridge_Init();    // sets up comms
+	
+	// ComputerBridge_Init();    // sets up comms
 	StateMachine_Init();      // sets state to SYS_STARTUP
+	
+	Comms_Init(USART6); // set up comms
+	UartHAL_FlushRx(USART6);
+	// UartHAL_EnableRxIRQ(USART6, 1);  // re-enable RX interrupt
 
 	/*
-	#if !SKIP_STARTUP_SEQUENCE // in config.h
-	
-		goHome(0x03);
-	
-		while (1) {
-			uint8_t result = readGoHomeFinishAck();
-			if (result == 1) { // 1 = Success
-					break; 
-			}
-			HAL_Delay(10);
+	while (1) {
+		if (USART6->CR1 & USART_CR1_RXNEIE) {
+		    char c = 'A';
+		    // UartHAL_Send(USART6, (uint8_t*)&c, 1);  // should send
+		    Comms_SendHeartbeat();
+		    HAL_Delay(10);
+		} else {
+		    char c = 'X';
+		    // UartHAL_Send(USART6, (uint8_t*)&c, 1);  // debug
 		}
-		
-		HAL_Delay(5000);
-		setZero(0x03);
-		
-		while (1) {
-			uint8_t result = readSetZeroAck();
-			if (result == 1) { // 1 = Success
-					break; 
-			}
-			HAL_Delay(10);
-		}
-		
-		HAL_Delay(1000);
-		positionMode2Run(0x03, 500, 50, 1600);
-		HAL_Delay(5000);
-		
-	#endif
+	}
 	*/
 
-	// echo debug:
 
-	while (1)
-	{
-	    // --- RAW ECHO DEBUG ---
-	    while (UartHAL_RxAvailable(USART6))
-	    {
-	        int16_t b = UartHAL_Read(USART6);
-	        if (b >= 0)
-	        {
-	            uint8_t out = (uint8_t)b;
-	            UartHAL_Send(USART6, &out, 1);
-	        }
-	    }
-
-	    // OPTIONAL: comment these out during echo test
-	    //Comms_Process();
-	    //StateMachine_ProcessTick();
-	    //Comms_Tick();
+	#if ENABLE_ECHO_DEBUG
+	while (1) {
+		int16_t byte = UartHAL_Read(USART6);  // read one byte from RX
+		if (byte >= 0) {
+			uint8_t b = (uint8_t)byte;
+			UartHAL_Send(USART6, &b, 1);     // immediately send it back
+		}
+		// optionally, small delay if CPU load is an issue:
+		// HAL_Delay(1);
 	}
+	#endif
+
+	//*/
 
   
 	while (1) {
@@ -209,31 +191,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	while (1)
+	{
+    /* USER CODE END WHILE */
 
-		/*
-		while (1) {
-		    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 99);  // 100% duty (Period = 99)
-		    HAL_Delay(1000);
-
-		    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 74);  // ~75% duty
-		    HAL_Delay(1000);
-
-		    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 49);  // ~50% duty
-		    HAL_Delay(1000);
-		}
-		*/
-
-  /*
-	// comms debugging:
-  while (1)
-  {
-		  uint8_t msg[] = "HELLO\n";
-		  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1, 100);
-		  HAL_Delay(1000);
-  }
-  */
-
-	/* inside main loop, after StateMachine_ProcessTick() and ComputerBridge_Tick() */
+    /* USER CODE BEGIN 3 */
+	}
+  /* USER CODE END 3 */
 }
 
 /**

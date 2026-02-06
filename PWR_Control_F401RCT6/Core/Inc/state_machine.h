@@ -14,3 +14,5 @@ void StateMachine_ProcessTick(void); // call in main loop
 void StateMachine_OnHandshakeAccepted(void);
 SysState_t StateMachine_GetState(void);
 void StateMachine_TriggerFatal(void); // force error/shutdown
+
+extern volatile uint32_t handshake_timeout_ms;

@@ -122,7 +122,7 @@ void UartHAL_IRQHandler(USART_TypeDef *inst) {
     }
 
     // Optional: handle ORE by reading DR if needed; RXNE path already reads DR.
-    // if (sr & USART_SR_ORE) { volatile uint8_t dummy = p->inst->DR; (void)dummy; }
+    if (sr & USART_SR_ORE) { volatile uint8_t dummy = p->inst->DR; (void)dummy; }
 }
 
 // Add to uart_hal.c
