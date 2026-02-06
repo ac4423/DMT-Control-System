@@ -22,6 +22,8 @@
 
 /* USER CODE BEGIN 0 */
 
+volatile uint32_t SYSTEM_TICK;
+
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim2;

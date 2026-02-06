@@ -19,7 +19,7 @@ typedef struct {
     uint8_t attached;
 } UartHAL_Port;
 
-static UartHAL_Port _ports[3];  // support USART1/2/3
+static UartHAL_Port _ports[6];
 
 static inline UartHAL_Port* _get_port(USART_TypeDef *inst) {
     if (inst == USART1) return &_ports[0];

@@ -79,8 +79,8 @@ void FlowMeter_TickHook(void);
 
 /* ================= Flow Schedule API ================= */
 
-uint8_t FlowSchedule_Push(uint32_t flow_lmin);
-uint8_t FlowSchedule_PushImmediate(uint32_t flow_lmin);
+uint8_t FlowSchedule_Push(uint32_t flow_lmin); /// add to ring buffer
+uint8_t FlowSchedule_PushImmediate(uint32_t flow_lmin); // set the immediate flow rate (only required once)
 uint16_t FlowSchedule_Depth(void);
 void FlowSchedule_Clear(void);
 

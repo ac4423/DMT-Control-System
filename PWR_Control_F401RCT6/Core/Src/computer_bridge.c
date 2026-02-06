@@ -5,40 +5,23 @@
 #include "computer_bridge.h"
 #include "uart_hal.h"
 #include "motor_control.h"
+#include "config.h"
+#include "state_machine.h"
+#include "injection_and_flow.h"
+#include "tim.h"
 
 bool run_state = 1;
 
 static uint8_t txBuffer[64];
 static uint8_t rxBuffer[64];
 
-static inline USART_TypeDef* COM_BUS(void) { return USART2; }
+static inline USART_TypeDef* COM_BUS(void) { return USART6; }
 
-void check_start(void)
-{
-    if (check_start_flag)
-    {
-        run_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1);
-    }
-}
+static uint32_t last_telemetry_ms = 0;
 
-void transmit_data(void)
-{
-    if (transmit_data_flag && run_state)
-    {
-        transmit_data_flag = false;
-        UartHAL_FlushRx(COM_BUS());
-        
-        txBuffer[0] = 0xFF;
-        txBuffer[1] = 0x00;
-        txBuffer[2] = (uint8_t)((timer_sync_count) & 0xFF);
-        txBuffer[3] = (uint8_t)((timer_sync_count >> 8) & 0xFF);
-        txBuffer[4] = (uint8_t)((timer_sync_count >> 16) & 0xFF);
-        txBuffer[5] = (uint8_t)((timer_sync_count >> 24) & 0xFF);
-        txBuffer[6] = (uint8_t)((stepper_pos) & 0xFF);
-        txBuffer[7] = (uint8_t)((stepper_pos >> 8) & 0xFF);
-        txBuffer[8] = (uint8_t)((stepper_pos >> 16) & 0xFF);
-        txBuffer[9] = (uint8_t)((stepper_pos >> 24) & 0xFF);
-        
-        UartHAL_Send(COM_BUS(), txBuffer, 10);
-    }
+// Initialize communications for Pi (call this during startup)
+void ComputerBridge_Init(void) {
+    // Ensure USART6 is prepared in MX_USART6_UART_Init() and call UartHAL_Attach there,
+    // but Comms_Init here ensures it's attached if not already.
+    Comms_Init(USART6);
 }

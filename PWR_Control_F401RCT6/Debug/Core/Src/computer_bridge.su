@@ -1,3 +1,1 @@
-../Core/Src/computer_bridge.c:14:30:COM_BUS	4	static
-../Core/Src/computer_bridge.c:16:6:check_start	8	static
-../Core/Src/computer_bridge.c:24:6:transmit_data	8	static
+../Core/Src/computer_bridge.c:23:6:ComputerBridge_Init	8	static

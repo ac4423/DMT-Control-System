@@ -36,6 +36,8 @@
 #if ENABLE_USB_SERIAL_DEBUG
 #include "usb_debug.h"
 #endif
+#include "comms.h"
+#include "state_machine.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,20 +57,21 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-bool hall_check_flag = false;
-bool lasers_flag = false;
-bool motor_flag = false;
-bool motor_read_flag = false;
-bool stepper_rx_check_flag = false;
-bool check_start_flag = false;
-bool transmit_data_flag = false;
+volatile bool hall_check_flag = false;
+volatile bool lasers_flag = false;
+volatile bool motor_flag = false;
+volatile bool motor_read_flag = false;
+volatile bool stepper_rx_check_flag = false;
+volatile bool check_start_flag = false;
+volatile bool transmit_data_flag = false;
 
 // flowmeter + injection pump:
 // volatile int flowmeter_pulse_flag = 0;
 volatile bool injection_system_flag = 0;
 
 uint32_t timer_cnt_1s = 0;
-uint8_t timer_cnt_2ms = 0;
+uint32_t usart_count_ms = 0;
+uint32_t stepper_motor_read_count_ms = 0;
 uint32_t timer_sync_count = 0;
 uint32_t usb_serial_timer = 0;
 
@@ -123,7 +126,7 @@ int main(void)
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 	
-  HAL_TIM_Base_Start_IT(&htim2); // start TIM6 system clock
+  HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // start TIM3 for PWM for injection pump
 	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1); // start TIM5 for flowmeter input capture.
 	
@@ -131,6 +134,12 @@ int main(void)
 	InjectionAndFlow_Init();
 	flags_init();
 	
+	// in main() after HAL and peripheral init:
+	Comms_Init(USART6); // set up comms
+	ComputerBridge_Init();    // sets up comms
+	StateMachine_Init();      // sets state to SYS_STARTUP
+
+	/*
 	#if !SKIP_STARTUP_SEQUENCE // in config.h
 	
 		goHome(0x03);
@@ -159,7 +168,43 @@ int main(void)
 		HAL_Delay(5000);
 		
 	#endif
+	*/
+
+	// echo debug:
+
+	while (1)
+	{
+	    // --- RAW ECHO DEBUG ---
+	    while (UartHAL_RxAvailable(USART6))
+	    {
+	        int16_t b = UartHAL_Read(USART6);
+	        if (b >= 0)
+	        {
+	            uint8_t out = (uint8_t)b;
+	            UartHAL_Send(USART6, &out, 1);
+	        }
+	    }
+
+	    // OPTIONAL: comment these out during echo test
+	    //Comms_Process();
+	    //StateMachine_ProcessTick();
+	    //Comms_Tick();
+	}
+
   
+	while (1) {
+		// keep Comms parsing running
+		Comms_Process();
+
+		// state machine handling for startup/handshake/timeouts
+		StateMachine_ProcessTick();
+
+		// send telemetry and heartbeat packets)
+		Comms_Tick();
+
+		// Small delay / let other interrupts do work; do not block.
+	}
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -178,33 +223,17 @@ int main(void)
 		}
 		*/
 
-		
+  /*
+	// comms debugging:
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-//    hall_status_check();
-//    lasers_shutdown();
-		
-      check_start();
-      motor_test();
-      motor_read();
-      transmit_data();
-		
-			#if ENABLE_USB_SERIAL_DEBUG
-					USB_serial_send_debug();
-			#endif
-		
-			#if !PWM_DEBUG
-			update_pump_state();
-			#endif
-
-			#if PWM_DEBUG
-			GenerateSawWaveDebug();
-			#endif
+		  uint8_t msg[] = "HELLO\n";
+		  HAL_UART_Transmit(&huart2, msg, sizeof(msg)-1, 100);
+		  HAL_Delay(1000);
   }
-  /* USER CODE END 3 */
+  */
+
+	/* inside main loop, after StateMachine_ProcessTick() and ComputerBridge_Tick() */
 }
 
 /**
@@ -255,63 +284,74 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     }
 }
 
+/* inside HAL_TIM_PeriodElapsedCallback */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2) {
-				#if RECORD_PULSE_TIMESTAMPS
-						FlowMeter_TickHook(); // for recording flowmeter pulse timestamps.
-						// GPT says that this is light for the ISR. Roughly 200 nanoseconds of time. Reevaluate and confirm if critical.
-				#endif
-			
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1); // what is this for????
+        /* increment the system tick (single timebase used for timestamps) */
+    	SYSTEM_TICK++;  // <-- IMPORTANT: TIM2/TIM6 comment mismatch — this is your system tick increment
+
+        #if RECORD_PULSE_TIMESTAMPS
+            FlowMeter_TickHook();
+        #endif
+
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0);
-			
-				// tim6_tick++;   // new extern counter variable (CONFIG.h)
-				
+
         hall_check_flag = true;
         lasers_flag = true;
         stepper_rx_check_flag = true;
         check_start_flag = true;
-			
+
+        /* Convert ms counters to ticks where appropriate in other modules.
+           Keep these counters for backward compatibility but they are driven by the ISR tick increments. */
+
+        // simple counters retained but can be refactored to use tim6_tick comparisons
         if (++timer_cnt_1s >= 10000) {
-						timer_cnt_1s = 0;
-						motor_flag = true;
+            timer_cnt_1s = 0;
+            motor_flag = true;
         }
-				
-        if (++timer_cnt_2ms >= 20) {
-						timer_cnt_2ms = 0;
-						motor_read_flag = true;
-						transmit_data_flag = true;
+
+        /*
+        if (++usart_count_ms >= PI_STM_TRANSMIT_DATA_PERIOD_MS) {
+            usart_count_ms = 0;
+            transmit_data_flag = true;
         }
+        */
+
+        /*
+        if (++stepper_motor_read_count_ms >= STEPPER_MOTOR_READ_PERIOD_MS) {
+            stepper_motor_read_count_ms = 0;
+            motor_read_flag = true;
+        }
+        */
 
 #if ENABLE_USB_SERIAL_DEBUG
-				if (++usb_serial_timer >= serial_send_ticks_threshold) {
-						usb_serial_timer = 0;
-						usb_serial_flag = 1;
+        if (++usb_serial_timer >= serial_send_ticks_threshold) {
+            usb_serial_timer = 0;
+            usb_serial_flag = 1;
         }
 #endif
-				
-		if (++Pump_Control.pump_counter >= pump_ticks_threshold) {
-						Pump_Control.pump_counter = 0;
-						Pump_Control.pump_flag = 1;
+
+        if (++Pump_Control.pump_counter >= pump_ticks_threshold) {
+            Pump_Control.pump_counter = 0;
+            Pump_Control.pump_flag = 1;
         }
-				
-		if (++debug_ticker_1>= 1000) {
-						debug_ticker_1 = 0;
-						debug_flag_1= 1;
-		}
+
+        if (++debug_ticker_1 >= 1000) {
+            debug_ticker_1 = 0;
+            debug_flag_1 = 1;
+        }
 
         if (run_state) {
-						timer_sync_count++;
+            timer_sync_count++;
+        } else {
+            timer_sync_count = 0;
         }
-				
-        else {
-						timer_sync_count = 0;
-        }
-				
-				
     }
 }
+
+
 /* USER CODE END 4 */
 
 /**
@@ -323,9 +363,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
-  }
+  while (1) {};
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT

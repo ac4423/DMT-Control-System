@@ -40,6 +40,8 @@ extern TIM_HandleTypeDef htim5;
 
 /* USER CODE BEGIN Private defines */
 
+extern volatile uint32_t SYSTEM_TICK;
+
 /* USER CODE END Private defines */
 
 void MX_TIM2_Init(void);

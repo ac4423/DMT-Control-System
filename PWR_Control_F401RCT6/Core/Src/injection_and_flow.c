@@ -351,6 +351,7 @@ void FlowSchedule_Clear(void)
 
 void GenerateSawWaveDebug(void)
 {
+#if PWM_DEBUG
     if (debug_flag_1) {
         debug_flag_1 = 0;
 
@@ -374,4 +375,5 @@ void GenerateSawWaveDebug(void)
         // Apply PWM directly (bypass PI/LUT)
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, saw_pwm_duty);
     }
+#endif
 }

@@ -1,0 +1,12 @@
+../Core/Src/comms.c:39:16:xor_crc	24	static
+../Core/Src/comms.c:51:13:_send_frame	160	static
+../Core/Src/comms.c:72:6:Comms_Init	24	static
+../Core/Src/comms.c:87:6:Comms_RegisterHandshakeCb	16	static
+../Core/Src/comms.c:99:12:_read_byte	24	static
+../Core/Src/comms.c:107:20:write_u32_le	16	static
+../Core/Src/comms.c:120:6:Comms_SendAck	24	static
+../Core/Src/comms.c:130:6:Comms_SendNack	24	static
+../Core/Src/comms.c:141:6:Comms_SendTelemetry	40	static
+../Core/Src/comms.c:157:6:Comms_SendHeartbeat	16	static
+../Core/Src/comms.c:169:6:Comms_Process	48	static
+../Core/Src/comms.c:353:6:Comms_Tick	24	static
