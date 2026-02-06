@@ -9,10 +9,13 @@ typedef enum {
      SYS_ERROR_SHUTDOWN
    } SysState_t;
 
+void RunStartupSequence(void);
+   
 void StateMachine_Init(void);
 void StateMachine_ProcessTick(void); // call in main loop
 void StateMachine_OnHandshakeAccepted(void);
 SysState_t StateMachine_GetState(void);
 void StateMachine_TriggerFatal(void); // force error/shutdown
+void StateMachine_EnterPairing(void);
 
 extern volatile uint32_t handshake_timeout_ms;

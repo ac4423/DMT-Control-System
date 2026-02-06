@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "uart_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -223,7 +224,7 @@ void USART2_IRQHandler(void)
   /* USER CODE BEGIN USART2_IRQn 0 */
   UartHAL_IRQHandler(USART2);
   /* USER CODE END USART2_IRQn 0 */
-  // HAL_UART_IRQHandler(&huart2);
+  HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
 
   /* USER CODE END USART2_IRQn 1 */
@@ -251,7 +252,7 @@ void USART6_IRQHandler(void)
   /* USER CODE BEGIN USART6_IRQn 0 */
   UartHAL_IRQHandler(USART6);
   /* USER CODE END USART6_IRQn 0 */
-  // HAL_UART_IRQHandler(&huart6);
+  HAL_UART_IRQHandler(&huart6);
   /* USER CODE BEGIN USART6_IRQn 1 */
   /* USER CODE END USART6_IRQn 1 */
 }

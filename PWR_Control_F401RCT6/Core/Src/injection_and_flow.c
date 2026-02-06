@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdlib.h>
 #include "gpio.h"
 #include "injection_and_flow.h"
 #include "stm32f4xx_hal.h"

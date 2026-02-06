@@ -10,7 +10,7 @@ static uint8_t txBuffer[64];
 static uint8_t rxBuffer[64];
 
 // Private helper
-static inline USART_TypeDef* MKS_BUS(void) { return USART6; }
+static inline USART_TypeDef* MKS_BUS(void) { return USART2; }
 
 uint8_t getCheckSum(uint8_t *buffer, uint8_t size) {
     uint16_t sum = 0;

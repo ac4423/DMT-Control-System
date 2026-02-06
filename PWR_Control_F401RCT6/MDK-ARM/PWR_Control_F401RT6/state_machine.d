@@ -1,5 +1,7 @@
-pwr_control_f401rt6/stm32f4xx_hal_flash_ex.o: \
-  ..\Drivers\STM32F4xx_HAL_Driver\Src\stm32f4xx_hal_flash_ex.c \
+pwr_control_f401rt6/state_machine.o: ..\Core\Src\state_machine.c \
+  ..\Core\Inc\state_machine.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdint.h ..\Core\Inc\config.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h ..\Core\Inc\comms.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal.h \
   ..\Core\Inc\stm32f4xx_hal_conf.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_rcc.h \
@@ -7,7 +9,6 @@ pwr_control_f401rt6/stm32f4xx_hal_flash_ex.o: \
   ..\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h \
   ..\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f401xc.h \
   ..\Drivers\CMSIS\Include\core_cm4.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdint.h \
   ..\Drivers\CMSIS\Include\cmsis_version.h \
   ..\Drivers\CMSIS\Include\cmsis_compiler.h \
   ..\Drivers\CMSIS\Include\cmsis_armclang.h \
@@ -29,4 +30,6 @@ pwr_control_f401rt6/stm32f4xx_hal_flash_ex.o: \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_pwr_ex.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim_ex.h \
-  ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_uart.h
+  ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_uart.h \
+  ..\Core\Inc\injection_and_flow.h ..\Core\Inc\main.h ..\Core\Inc\tim.h \
+  ..\Core\Inc\mks42d.h

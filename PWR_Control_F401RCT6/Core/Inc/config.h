@@ -7,7 +7,7 @@
 /* ================= Debug / Config Features ================= */
 
 #define SKIP_CRC_CHECK   1   // set to 1 to ignore CRC and accept all messages
-#define SKIP_STARTUP_SEQUENCE 1
+#define SKIP_STARTUP_SEQUENCE 0
 
 #define ENABLE_USB_SERIAL_DEBUG      0
 #define PWM_DEBUG 1

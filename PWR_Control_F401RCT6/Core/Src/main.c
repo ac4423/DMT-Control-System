@@ -33,6 +33,7 @@
 #include "uart_hal.h"
 #include "config.h"
 #include "injection_and_flow.h"
+#include "state_machine.h"
 #if ENABLE_USB_SERIAL_DEBUG
 #include "usb_debug.h"
 #endif
@@ -126,66 +127,69 @@ int main(void)
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 
-
 	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // start TIM3 for PWM for injection pump
-	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1); // start TIM5 for flowmeter input capture.
-	
-	// Custom Init functions:
-	InjectionAndFlow_Init();
-	flags_init();
-	
-	// in main() after HAL and peripheral init:
-	
-	// ComputerBridge_Init();    // sets up comms
-	StateMachine_Init();      // sets state to SYS_STARTUP
-	
-	Comms_Init(USART6); // set up comms
-	UartHAL_FlushRx(USART6);
-	// UartHAL_EnableRxIRQ(USART6, 1);  // re-enable RX interrupt
+//	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // start TIM3 for PWM for injection pump
+//	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1); // start TIM5 for flowmeter input capture.
+//	
+//	// Custom Init functions:
+//	InjectionAndFlow_Init();
+//	flags_init();
+//	
+//	// in main() after HAL and peripheral init:
+//	
+//	// ComputerBridge_Init();    // sets up comms
+//	StateMachine_Init();      // sets state to SYS_STARTUP
+//	
+//	Comms_Init(USART6); // set up comms
+//	UartHAL_FlushRx(USART6);
+//	// UartHAL_EnableRxIRQ(USART6, 1);  // re-enable RX interrupt
 
-	/*
-	while (1) {
-		if (USART6->CR1 & USART_CR1_RXNEIE) {
-		    char c = 'A';
-		    // UartHAL_Send(USART6, (uint8_t*)&c, 1);  // should send
-		    Comms_SendHeartbeat();
-		    HAL_Delay(10);
-		} else {
-		    char c = 'X';
-		    // UartHAL_Send(USART6, (uint8_t*)&c, 1);  // debug
-		}
-	}
-	*/
+//	/*
+//	while (1) {
+//		if (USART6->CR1 & USART_CR1_RXNEIE) {
+//		    char c = 'A';
+//		    // UartHAL_Send(USART6, (uint8_t*)&c, 1);  // should send
+//		    Comms_SendHeartbeat();
+//		    HAL_Delay(10);
+//		} else {
+//		    char c = 'X';
+//		    // UartHAL_Send(USART6, (uint8_t*)&c, 1);  // debug
+//		}
+//	}
+//	*/
 
 
-	#if ENABLE_ECHO_DEBUG
-	while (1) {
-		int16_t byte = UartHAL_Read(USART6);  // read one byte from RX
-		if (byte >= 0) {
-			uint8_t b = (uint8_t)byte;
-			UartHAL_Send(USART6, &b, 1);     // immediately send it back
-		}
-		// optionally, small delay if CPU load is an issue:
-		// HAL_Delay(1);
-	}
-	#endif
+//	#if ENABLE_ECHO_DEBUG
+//	while (1) {
+//		int16_t byte = UartHAL_Read(USART6);  // read one byte from RX
+//		if (byte >= 0) {
+//			uint8_t b = (uint8_t)byte;
+//			UartHAL_Send(USART6, &b, 1);     // immediately send it back
+//		}
+//		// optionally, small delay if CPU load is an issue:
+//		// HAL_Delay(1);
+//	}
+//	#endif
 
-	//*/
+//	//*/
 
-  
-	while (1) {
-		// keep Comms parsing running
-		Comms_Process();
+//  
+//	while (1) {
+//		// keep Comms parsing running
+//		Comms_Process();
 
-		// state machine handling for startup/handshake/timeouts
-		StateMachine_ProcessTick();
+//		// state machine handling for startup/handshake/timeouts
+//		StateMachine_ProcessTick();
 
-		// send telemetry and heartbeat packets)
-		Comms_Tick();
+//		// send telemetry and heartbeat packets)
+//		Comms_Tick();
 
-		// Small delay / let other interrupts do work; do not block.
-	}
+//		// Small delay / let other interrupts do work; do not block.
+//	}
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 0);
 
   /* USER CODE END 2 */
 
@@ -194,7 +198,7 @@ int main(void)
 	while (1)
 	{
     /* USER CODE END WHILE */
-
+        RunStartupSequence();
     /* USER CODE BEGIN 3 */
 	}
   /* USER CODE END 3 */

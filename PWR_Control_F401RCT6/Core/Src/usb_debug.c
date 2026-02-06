@@ -105,4 +105,4 @@ void FlowLUT_SendToUSB(void)
     }
 }
 
-#endif ENABLE_USB_SERIAL_DEBUG
+#endif //ENABLE_USB_SERIAL_DEBUG

@@ -8,6 +8,7 @@ void Comms_Process(void);                  // call often in main loop
 void Comms_SendTelemetry(void);            // send telemetry now
 void Comms_SendAck(uint8_t seq);
 void Comms_SendNack(uint8_t seq);
+void Comms_SendHeartbeat(void);
 
 // Registering optional callback for telemetry packing or events (not required)
 typedef void (*Comms_OnHandshake_t)(uint16_t telemetry_ms, uint8_t send_ack);

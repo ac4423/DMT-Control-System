@@ -65,8 +65,8 @@ void FlowMeter_PulseCallback(void);
 void FlowMeter_UpdateInstantaneous(void);
 void FlowMeter_UpdateTotal(void);
 
-uint32_t FlowMeter_GetFlow_Lmin(void);
-uint32_t FlowMeter_GetTotalLitres(void);
+uint32_t FlowMeter_GetFlow_mLmin(void);
+uint32_t FlowMeter_GetTotal_mL(void);
 
 void update_pump_state(void);
 

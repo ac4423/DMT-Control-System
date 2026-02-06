@@ -18,6 +18,8 @@
 "pwr_control_f401rt6\usart.o"
 "pwr_control_f401rt6\stm32f4xx_it.o"
 "pwr_control_f401rt6\stm32f4xx_hal_msp.o"
+"pwr_control_f401rt6\comms.o"
+"pwr_control_f401rt6\state_machine.o"
 "pwr_control_f401rt6\stm32f4xx_hal_tim.o"
 "pwr_control_f401rt6\stm32f4xx_hal_tim_ex.o"
 "pwr_control_f401rt6\stm32f4xx_hal_rcc.o"

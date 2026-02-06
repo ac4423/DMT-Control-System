@@ -34,7 +34,7 @@ extern volatile uint16_t telemetry_period_ms;
 extern volatile uint8_t self_op_enabled;
 
 /* The startup sequence is similar to your earlier RunStartupSequence but uses ticks */
-static void RunStartupSequence(void) {
+void RunStartupSequence(void) {
 	#if SKIP_STARTUP_SEQUENCE
 		// Immediately treat startup as complete
 		if (self_op_enabled) {
@@ -58,10 +58,12 @@ static void RunStartupSequence(void) {
             if (readGoHomeFinishAck() == 1) {
                 step_timer_tick = now;
                 startup_step = 2;
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
             }
             break;
         case 2:
             if ((now - step_timer_tick) >= MS_TO_TICKS(5000)) {
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
                 setZero(0x03);
                 step_timer_tick = now;
                 startup_step = 3;
@@ -69,18 +71,12 @@ static void RunStartupSequence(void) {
             break;
         case 3:
             if (readSetZeroAck() == 1) {
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 1);
                 step_timer_tick = now;
                 startup_step = 4;
             }
             break;
         case 4:
-            if ((now - step_timer_tick) >= MS_TO_TICKS(1000)) {
-                positionMode2Run(0x03, 500, 50, 1600);
-                step_timer_tick = now;
-                startup_step = 5;
-            }
-            break;
-        case 5:
             if ((now - step_timer_tick) >= MS_TO_TICKS(5000)) {
                 /* Startup finished -> move to PAIRING */
                 /* If self_op_enabled then go to STANDALONE, else go to PAIRING and wait for handshake */
@@ -89,7 +85,7 @@ static void RunStartupSequence(void) {
                 } else {
                     StateMachine_EnterPairing();
                 }
-                startup_step = 0;
+                //startup_step = 0;
             }
             break;
         default:

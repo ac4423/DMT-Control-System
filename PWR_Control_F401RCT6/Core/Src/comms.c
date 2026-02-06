@@ -3,6 +3,7 @@
 #include "config.h"
 #include "injection_and_flow.h"
 #include "state_machine.h"
+#include "comms.h"
 #include <string.h>
 #include <tim.h>
 

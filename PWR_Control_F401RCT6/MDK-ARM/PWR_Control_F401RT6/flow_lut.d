@@ -1,12 +1,18 @@
 pwr_control_f401rt6/flow_lut.o: ..\Core\Src\flow_lut.c \
-  ..\Core\Inc\flow_lut.h ..\Core\Inc\injection_and_flow.h \
-  ..\Core\Inc\main.h ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal.h \
+  ..\Core\Inc\flow_lut.h C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdint.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stddef.h \
+  ..\Core\Inc\injection_and_flow.h ..\Core\Inc\main.h \
+  ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal.h \
   ..\Core\Inc\stm32f4xx_hal_conf.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_rcc.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_def.h \
   ..\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h \
   ..\Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f401xc.h \
   ..\Drivers\CMSIS\Include\core_cm4.h \
+  ..\Drivers\CMSIS\Include\cmsis_version.h \
+  ..\Drivers\CMSIS\Include\cmsis_compiler.h \
+  ..\Drivers\CMSIS\Include\cmsis_armclang.h \
+  ..\Drivers\CMSIS\Include\mpu_armv7.h \
   ..\Drivers\CMSIS\Device\ST\STM32F4xx\Include\system_stm32f4xx.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\Legacy\stm32_hal_legacy.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_rcc_ex.h \
@@ -24,4 +30,6 @@ pwr_control_f401rt6/flow_lut.o: ..\Core\Src\flow_lut.c \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim_ex.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_uart.h \
-  ..\Core\Inc\CONFIG.H ..\Core\Inc\usb_debug.h ..\Core\Inc\tim.h
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h ..\Core\Inc\config.h \
+  ..\Core\Inc\usb_debug.h C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h \
+  ..\Core\Inc\tim.h
