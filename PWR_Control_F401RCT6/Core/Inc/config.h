@@ -12,7 +12,15 @@
 #define ENABLE_USB_SERIAL_DEBUG      0
 #define PWM_DEBUG 1
 #define RECORD_PULSE_TIMESTAMPS 1
-#define ENABLE_ECHO_DEBUG 1
+#define ENABLE_ECHO_DEBUG 0
+
+/* ================= Serial Comms ================= */
+
+/* default values (can be overwritten by Pi primary/secondary handshake) */
+#define DEFAULT_TELEMETRY_PERIOD_MS 200
+#define DEFAULT_HEARTBEAT_PERIOD_MS 500
+#define DEFAULT_SEND_ACK_AND_NACK 1
+#define DEFAULT_SELF_OP_ENABLED 0
 
 /* ================= Timing ================= */
 
@@ -25,12 +33,6 @@
 
 /* Helper to convert ms -> ticks (TIM6 ticks) */
 #define MS_TO_TICKS(ms)   ((uint32_t)(((ms) * 1000U) / TIM6_TICK_uS))
-
-/* default values (can be overwritten by Pi primary/secondary handshake) */
-#define DEFAULT_TELEMETRY_PERIOD_MS 200
-#define DEFAULT_HEARTBEAT_PERIOD_MS 500
-#define DEFAULT_SEND_ACK_AND_NACK 0
-#define DEFAULT_SELF_OP_ENABLED 0
 
 /* ================= Flowmeter / pump / etc ================= */
 

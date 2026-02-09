@@ -1,7 +1,8 @@
-../Core/Src/state_machine.c:37:13:RunStartupSequence	8	static
-../Core/Src/state_machine.c:102:6:StateMachine_Init	4	static
-../Core/Src/state_machine.c:112:12:StateMachine_GetState	4	static
+../Core/Src/state_machine.c:37:6:RunStartupSequence	16	static
+../Core/Src/state_machine.c:98:6:StateMachine_Init	4	static
+../Core/Src/state_machine.c:108:12:StateMachine_GetState	4	static
+../Core/Src/state_machine.c:112:9:StateMachine_GetStartupStep	4	static
 ../Core/Src/state_machine.c:117:6:StateMachine_OnHandshakeAccepted	4	static
-../Core/Src/state_machine.c:123:6:StateMachine_TriggerFatal	8	static
-../Core/Src/state_machine.c:130:6:StateMachine_ProcessTick	16	static
-../Core/Src/state_machine.c:166:6:StateMachine_EnterPairing	4	static
+../Core/Src/state_machine.c:128:6:StateMachine_TriggerFatal	8	static
+../Core/Src/state_machine.c:135:6:StateMachine_ProcessTick	16	static
+../Core/Src/state_machine.c:171:6:StateMachine_EnterPairing	4	static

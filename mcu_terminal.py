@@ -31,6 +31,19 @@ STATE_NAMES = {
     4: "SYS_ERROR_SHUTDOWN",
 }
 
+def stepper_gohome_ack():
+    # FB 03 91 <status=2> checksum
+    pkt = bytearray([0xFB, 0x03, 0x91, 0x02])
+    checksum = sum(pkt) & 0xFF
+    pkt.append(checksum)
+    return pkt
+
+def stepper_setzero_ack():
+    # FB 03 92 <status=1> checksum
+    pkt = bytearray([0xFB, 0x03, 0x92, 0x01])
+    checksum = sum(pkt) & 0xFF
+    pkt.append(checksum)
+    return pkt
 
 def xor_crc(msg_type, seq, payload: bytes):
     c = msg_type ^ seq
@@ -213,13 +226,21 @@ def decode_packet(pkt, ui: TerminalUI):
                 ui.mark_handshake_ack()
 
     elif msg_type == MSG_HEARTBEAT:
-        if len(payload) >= 6:
+    	if len(payload) >= 7:
             ts = u32_from_le(payload[0:4])
             st = payload[4]
-            ctr = payload[5]
+            startup_step = payload[5]
+            ctr = payload[6]
+
             ui.update_state(st)
             ui.mark_heartbeat()
-            desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} HB_CTR={ctr}"
+
+            desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)}"
+
+            if st == 0:  # SYS_STARTUP_SEQUENCE
+                desc += f" STARTUP_STEP={startup_step}"
+
+            desc += f" HB_CTR={ctr}"
 
     elif msg_type == MSG_TELEMETRY_PUSH:
         if len(payload) >= 13:
@@ -257,6 +278,7 @@ def keyboard_thread(ui: TerminalUI, ser: serial.Serial, hb_ms, tel_ms, send_ack,
                 return
 
             if ch == "h":
+                # Existing handshake code preserved
                 payload = bytearray()
                 payload += u16_le(hb_ms)
                 payload += u16_le(tel_ms)
@@ -274,9 +296,21 @@ def keyboard_thread(ui: TerminalUI, ser: serial.Serial, hb_ms, tel_ms, send_ack,
 
                 seq = (seq + 1) & 0xFF
 
+            # --- New keys for stepper emulation ---
+            elif ch == "1":
+                pkt = stepper_gohome_ack()
+                ser.write(pkt)
+                ui.print_packet_line(f"[TX] Stepper GoHome Ack: {format_hex(pkt)}")
+
+            elif ch == "2":
+                pkt = stepper_setzero_ack()
+                ser.write(pkt)
+                ui.print_packet_line(f"[TX] Stepper SetZero Ack: {format_hex(pkt)}")
+
+            # You can add '3' or more keys to simulate additional packets if needed
+
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-
 
 def main():
     parser = argparse.ArgumentParser(description="MCU Serial Monitor with Handshake Trigger (press H)")

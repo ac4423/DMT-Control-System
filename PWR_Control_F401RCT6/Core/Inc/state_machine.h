@@ -19,3 +19,6 @@ void StateMachine_TriggerFatal(void); // force error/shutdown
 void StateMachine_EnterPairing(void);
 
 extern volatile uint32_t handshake_timeout_ms;
+
+uint8_t StateMachine_GetStartupStep(void);
+

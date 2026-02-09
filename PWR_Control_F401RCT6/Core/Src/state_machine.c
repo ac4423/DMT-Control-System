@@ -109,9 +109,18 @@ SysState_t StateMachine_GetState(void) {
     return cur_state;
 }
 
+uint8_t StateMachine_GetStartupStep(void) {
+    return startup_step;
+}
+
 /* Called by Comms when a primary handshake is validated and will be explicitly ACKed */
-void StateMachine_OnHandshakeAccepted(void) {
-    /* handshake ACK must have already been sent by Comms parser */
+void StateMachine_OnHandshakeAccepted(void)
+{
+    if (cur_state != SYS_PAIRING)
+    {
+        return; // ignore handshake if not in pairing
+    }
+
     cur_state = SYS_RUNNING_PI;
 }
 

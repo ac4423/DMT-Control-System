@@ -123,8 +123,9 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM5_Init();
-  MX_USART2_UART_Init();
   MX_USART6_UART_Init();
+  MX_USART2_UART_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
 	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
@@ -140,10 +141,13 @@ int main(void)
 //	// ComputerBridge_Init();    // sets up comms
 //	StateMachine_Init();      // sets state to SYS_STARTUP
 //	
-//	Comms_Init(USART6); // set up comms
-//	UartHAL_FlushRx(USART6);
+	Comms_Init(USART1); // set up comms
+	UartHAL_FlushRx(USART1);
 //	// UartHAL_EnableRxIRQ(USART6, 1);  // re-enable RX interrupt
 
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 0);
 //	/*
 //	while (1) {
 //		if (USART6->CR1 & USART_CR1_RXNEIE) {
@@ -159,48 +163,68 @@ int main(void)
 //	*/
 
 
-//	#if ENABLE_ECHO_DEBUG
-//	while (1) {
-//		int16_t byte = UartHAL_Read(USART6);  // read one byte from RX
-//		if (byte >= 0) {
-//			uint8_t b = (uint8_t)byte;
-//			UartHAL_Send(USART6, &b, 1);     // immediately send it back
-//		}
-//		// optionally, small delay if CPU load is an issue:
-//		// HAL_Delay(1);
-//	}
-//	#endif
+	#if ENABLE_ECHO_DEBUG
+	uint8_t rxBuffer[128];
+	uint8_t txBuffer[128];
+
+	#define RECEIVE USART1
+	#define SEND USART1
+
+	while (1)
+	{
+		// --- Step 1: Check how many bytes are available ---
+		uint8_t available = UartHAL_RxAvailable(RECEIVE);
+		if (available == 0) {
+			// Nothing received, small delay
+			HAL_Delay(1);
+			continue;
+		}
+
+		if (available > sizeof(rxBuffer)) available = sizeof(rxBuffer);
+
+		// --- Step 2: Read all available bytes ---
+		for (uint8_t i = 0; i < available; i++)
+		{
+			rxBuffer[i] = UartHAL_Read(RECEIVE);
+		}
+
+		// --- Step 3: Echo them back ---
+		for (uint8_t i = 0; i < available; i++)
+		{
+			txBuffer[i] = rxBuffer[i];
+		}
+
+		// Send using reliable module function
+		UartHAL_Send(SEND, txBuffer, available);
+	}
+	#endif
 
 //	//*/
 
 //  
-//	while (1) {
+	while (1) {
 //		// keep Comms parsing running
-//		Comms_Process();
+	Comms_Process();
 
 //		// state machine handling for startup/handshake/timeouts
-//		StateMachine_ProcessTick();
+	StateMachine_ProcessTick();
 
 //		// send telemetry and heartbeat packets)
-//		Comms_Tick();
+	Comms_Tick();
 
 //		// Small delay / let other interrupts do work; do not block.
-//	}
+	}
 
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 0);
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	while (1)
-	{
+
     /* USER CODE END WHILE */
-        RunStartupSequence();
+
     /* USER CODE BEGIN 3 */
-	}
   /* USER CODE END 3 */
 }
 

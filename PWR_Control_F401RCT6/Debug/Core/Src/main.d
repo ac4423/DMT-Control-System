@@ -32,7 +32,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Core/Inc/mks42d.h ../Core/Inc/motor_control.h \
  ../Core/Inc/computer_bridge.h ../Core/Inc/uart_hal.h \
  ../Core/Inc/config.h ../Core/Inc/injection_and_flow.h \
- ../Core/Inc/config.h ../Core/Inc/comms.h ../Core/Inc/state_machine.h
+ ../Core/Inc/config.h ../Core/Inc/state_machine.h ../Core/Inc/comms.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -75,5 +75,5 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/config.h:
 ../Core/Inc/injection_and_flow.h:
 ../Core/Inc/config.h:
-../Core/Inc/comms.h:
 ../Core/Inc/state_machine.h:
+../Core/Inc/comms.h:

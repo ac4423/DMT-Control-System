@@ -165,13 +165,23 @@ void Comms_SendTelemetry(void) {
 
 void Comms_SendHeartbeat(void) {
     if (!comms_uart) return;
-    uint8_t payload[6];
+
+    SysState_t st = StateMachine_GetState();
+
+    uint8_t payload[7];
     write_u32_le(&payload[0], SYSTEM_TICK);
-    payload[4] = (uint8_t)StateMachine_GetState();
-    // optional heartbeat counter (2 bytes) - little endian
-    payload[5] = (uint8_t)(heartbeat_counter & 0xFF);
+    payload[4] = (uint8_t)st;
+
+    if (st == SYS_STARTUP_SEQUENCE) {
+        payload[5] = StateMachine_GetStartupStep();  // startup mode/stage indicator
+    } else {
+        payload[5] = 0;
+    }
+
+    payload[6] = (uint8_t)(heartbeat_counter & 0xFF);
     heartbeat_counter++;
-    _send_frame(MSG_HEARTBEAT, seq_counter++, payload, 6);
+
+    _send_frame(MSG_HEARTBEAT, seq_counter++, payload, 7);
 }
 
 /* Parser: extended to handle handshake and config requests and flow requests*/
@@ -232,39 +242,45 @@ void Comms_Process(void)
 
                     switch (tmp_type)
                     {
-                        case MSG_HANDSHAKE:
-                            /* Expected minimal payload:
-                               [heartbeat_period_ms (2 bytes LE)]
-                               [telemetry_period_ms (2 bytes LE)]
-                               [send_ack (1 byte)]
-                               Total 5 bytes minimum.
-                               Extra fields ignored. */
-                            if (tmp_len >= 5)
-                            {
-                                uint16_t hb = (uint16_t)payload_buf[0] | ((uint16_t)payload_buf[1] << 8);
-                                uint16_t tp = (uint16_t)payload_buf[2] | ((uint16_t)payload_buf[3] << 8);
-                                uint8_t send_ack = payload_buf[4];
 
-                                heartbeat_period_ms = hb;
-                                telemetry_period_ms = tp;
-                                send_ack_and_nack_packets = send_ack ? 1 : 0;
+                    case MSG_HANDSHAKE:
+						{
+							SysState_t st = StateMachine_GetState();
 
-                                /* Send explicit handshake ACK back to Pi — this is the definitive 'connected' signal */
-                                uint8_t ack_payload[6];
-                                write_u32_le(&ack_payload[0], SYSTEM_TICK);
-                                ack_payload[4] = (uint8_t)StateMachine_GetState();
-                                ack_payload[5] = 0; // reserved
-                                _send_frame(MSG_HANDSHAKE_ACK, tmp_seq, ack_payload, sizeof(ack_payload));
+							if (st != SYS_PAIRING)
+							{
+								// handshake not allowed in any other state
+								if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+								break;
+							}
 
-                                /* Notify upper layers and transition state */
-                                if (handshake_cb) handshake_cb(hb, send_ack);
-                                StateMachine_OnHandshakeAccepted();
-                            }
-                            else
-                            {
-                                if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
-                            }
-                            break;
+							if (tmp_len >= 5)
+							{
+								uint16_t hb = (uint16_t)payload_buf[0] | ((uint16_t)payload_buf[1] << 8);
+								uint16_t tp = (uint16_t)payload_buf[2] | ((uint16_t)payload_buf[3] << 8);
+								uint8_t send_ack = payload_buf[4];
+
+								heartbeat_period_ms = hb;
+								telemetry_period_ms = tp;
+								send_ack_and_nack_packets = send_ack ? 1 : 0;
+
+								uint8_t ack_payload[6];
+								write_u32_le(&ack_payload[0], SYSTEM_TICK);
+								ack_payload[4] = (uint8_t)st;
+								ack_payload[5] = 0;
+
+								_send_frame(MSG_HANDSHAKE_ACK, tmp_seq, ack_payload, sizeof(ack_payload));
+
+								if (handshake_cb) handshake_cb(hb, send_ack);
+
+								StateMachine_OnHandshakeAccepted();
+							}
+							else
+							{
+								if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+							}
+							break;
+						}
 
                         case MSG_CONFIG:
                             /* Secondary config: extensible TLV style fields.
@@ -281,6 +297,14 @@ void Comms_Process(void)
                                Format:
                                [tag][len][value bytes]...[tag][len][value]... */
                         {
+                        	SysState_t st = StateMachine_GetState();
+
+                        	if (st != SYS_PAIRING && st != SYS_RUNNING_PI)
+                        	{
+                        	    if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+                        	    break;
+                        	}
+
                             uint8_t idx = 0;
 
                             while (idx + 2 <= tmp_len)
