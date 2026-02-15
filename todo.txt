@@ -1,0 +1,7 @@
+andrei 15.02.2026
+
+- check whether the protocol handling on the MCU side is ready to go (probably not)
+- test setting differnt flow rates through the comms
+- fix uint8_t heartbeat counter overflow issue -- packet parsing might need to change to accomodate this
+
+- ultimately: clean up the entire codebase -- move all config variables to config.h. HAve a clean way for the protocol to overwrite them -- implement this overwrite fully to all configurable parameters. Structure the codebase neatly and tidy it up.

@@ -1,4 +1,4 @@
-../Core/Src/state_machine.c:37:6:RunStartupSequence	11
+../Core/Src/state_machine.c:37:6:RunStartupSequence	2
 ../Core/Src/state_machine.c:98:6:StateMachine_Init	1
 ../Core/Src/state_machine.c:108:12:StateMachine_GetState	1
 ../Core/Src/state_machine.c:112:9:StateMachine_GetStartupStep	1

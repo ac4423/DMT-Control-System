@@ -1,27 +1,29 @@
 #!/usr/bin/env python3
-import serial
-import time
+"""Terminal UI using mcu_comm.MCUComm
+
+Small, curses-free terminal UI. Keyboard shortcuts:
+- H: send handshake
+- Q: quit
+- 1/2: send emulated stepper packets (development)
+
+The UI remains single-threaded for drawing; driver receives packets in background
+and calls back into the UI safely.
+"""
 import argparse
 import sys
-import select
+import threading
+import time
 import termios
 import tty
-import threading
-import signal
+import select
+import logging
 
-COMMS_HDR = 0xA5
-COMMS_MAX_PAYLOAD = 128
+from mcu_comm.driver import MCUComm
+from mcu_comm.protocol import MSG_ACK, MSG_NACK, MSG_HANDSHAKE_ACK, MSG_HEARTBEAT, MSG_TELEMETRY_PUSH
+from mcu_comm.protocol import u32_from_le
 
-# Message types (from your firmware)
-MSG_ACK = 0x01
-MSG_NACK = 0x02
-MSG_TELEMETRY_PUSH = 0x03
-MSG_HANDSHAKE = 0x10
-MSG_CONFIG = 0x11
-MSG_HANDSHAKE_ACK = 0x12
-MSG_HEARTBEAT = 0x13
-MSG_DESIRED_FLOW = 0x20
-MSG_DESIRED_FLOW_IMMEDIATE = 0x21
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 STATE_NAMES = {
     0: "SYS_STARTUP_SEQUENCE",
@@ -31,157 +33,72 @@ STATE_NAMES = {
     4: "SYS_ERROR_SHUTDOWN",
 }
 
-def stepper_gohome_ack():
-    # FB 03 91 <status=2> checksum
-    pkt = bytearray([0xFB, 0x03, 0x91, 0x02])
-    checksum = sum(pkt) & 0xFF
-    pkt.append(checksum)
-    return pkt
-
-def stepper_setzero_ack():
-    # FB 03 92 <status=1> checksum
-    pkt = bytearray([0xFB, 0x03, 0x92, 0x01])
-    checksum = sum(pkt) & 0xFF
-    pkt.append(checksum)
-    return pkt
-
-def xor_crc(msg_type, seq, payload: bytes):
-    c = msg_type ^ seq
-    for b in payload:
-        c ^= b
-    return c & 0xFF
-
-
-def build_frame(msg_type, seq, payload: bytes):
-    length = len(payload)
-    if length > COMMS_MAX_PAYLOAD:
-        raise ValueError("Payload too long")
-
-    crc = xor_crc(msg_type, seq, payload)
-    return bytes([COMMS_HDR, msg_type, seq, length]) + payload + bytes([crc])
-
-
-def u16_le(v):
-    return bytes([v & 0xFF, (v >> 8) & 0xFF])
-
-
-def u32_from_le(b):
-    return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)
-
-
-class PacketParser:
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.state = "IDLE"
-        self.msg_type = 0
-        self.seq = 0
-        self.length = 0
-        self.payload = bytearray()
-        self.buffered_bytes = bytearray()  # collect bytes for invalid data
-
-    def feed(self, b):
-        self.buffered_bytes.append(b)
-
-        if self.state == "IDLE":
-            if b == COMMS_HDR:
-                self.state = "TYPE"
-                self.buffered_bytes = bytearray([b])
-        elif self.state == "TYPE":
-            self.msg_type = b
-            self.state = "SEQ"
-        elif self.state == "SEQ":
-            self.seq = b
-            self.state = "LEN"
-        elif self.state == "LEN":
-            self.length = b
-            self.payload = bytearray()
-            if self.length == 0:
-                self.state = "CRC"
-            elif self.length > COMMS_MAX_PAYLOAD:
-                # invalid payload length
-                invalid_data = bytes(self.buffered_bytes)
-                self.reset()
-                return {"invalid": invalid_data}
-            else:
-                self.state = "PAYLOAD"
-        elif self.state == "PAYLOAD":
-            self.payload.append(b)
-            if len(self.payload) >= self.length:
-                self.state = "CRC"
-        elif self.state == "CRC":
-            crc_calc = xor_crc(self.msg_type, self.seq, self.payload)
-            crc_recv = b
-            pkt = None
-
-            if crc_calc == crc_recv:
-                pkt = {
-                    "type": self.msg_type,
-                    "seq": self.seq,
-                    "len": self.length,
-                    "payload": bytes(self.payload),
-                    "crc": crc_recv,
-                }
-            else:
-                # CRC mismatch, report invalid
-                pkt = {"invalid": bytes(self.buffered_bytes)}
-
-            self.reset()
-            return pkt
-
-        return None
-
 
 class TerminalUI:
     def __init__(self):
+        self._lock = threading.Lock()
         self.last_state = None
         self.last_state_name = "UNKNOWN"
         self.last_heartbeat_time = None
         self.last_handshake_ack_time = None
         self.packet_count = 0
         self.bad_packets = 0
+        self._lines = []
         self.running = True
 
-        self._lock = threading.Lock()
-
-    def clear_screen(self):
+    def clear(self):
         sys.stdout.write("\033[2J\033[H")
         sys.stdout.flush()
 
     def draw_status_bar(self):
         with self._lock:
             now = time.time()
-
             hb_age = "N/A"
             if self.last_heartbeat_time is not None:
                 hb_age = f"{now - self.last_heartbeat_time:.2f}s ago"
-
             hs_age = "N/A"
             if self.last_handshake_ack_time is not None:
                 hs_age = f"{now - self.last_handshake_ack_time:.2f}s ago"
-
             line = (
                 f" MCU STATE: {self.last_state_name:<28}"
                 f" | Last HB: {hb_age:<12}"
                 f" | Last HS_ACK: {hs_age:<12}"
                 f" | Packets: {self.packet_count:<6}"
                 f" | Bad: {self.bad_packets:<4}"
-                f" | Keys: [H]=Handshake [Q]=Quit "
+                f" | Keys: [H]=Handshake [Q]=Quit"
             )
-
             sys.stdout.write("\033[H\033[2K" + line[:120] + "\n")
             sys.stdout.flush()
 
-    def print_packet_line(self, text):
+    def print_line(self, text: str):
         with self._lock:
-            sys.stdout.write("\033[s\033[2;1H\033[2;999r\033[999;1H" + text + "\n\033[u")
+            # keep last N lines
+            self._lines.append(text)
+            if len(self._lines) > 10:
+                self._lines.pop(0)
+            # print lines at bottom
+            sys.stdout.write("\033[s")
+            # write starting at row 2
+            row = 2
+            for l in self._lines:
+                sys.stdout.write(f"\033[{row};1H\033[2K" + l + "\n")
+                row += 1
+            sys.stdout.write("\033[u")
             sys.stdout.flush()
 
-    def update_state(self, state_byte):
+    # event methods called from driver callbacks
+    def inc_packet(self):
         with self._lock:
-            self.last_state = state_byte
-            self.last_state_name = STATE_NAMES.get(state_byte, f"UNKNOWN({state_byte})")
+            self.packet_count += 1
+
+    def inc_bad(self):
+        with self._lock:
+            self.bad_packets += 1
+
+    def update_state(self, st: int):
+        with self._lock:
+            self.last_state = st
+            self.last_state_name = STATE_NAMES.get(st, f"UNKNOWN({st})")
 
     def mark_heartbeat(self):
         with self._lock:
@@ -191,28 +108,20 @@ class TerminalUI:
         with self._lock:
             self.last_handshake_ack_time = time.time()
 
-    def inc_packet(self):
-        with self._lock:
-            self.packet_count += 1
 
-    def inc_bad(self):
-        with self._lock:
-            self.bad_packets += 1
-
-
-def format_hex(b: bytes):
+def format_hex(b: bytes) -> str:
     return " ".join(f"{x:02X}" for x in b)
 
 
-def decode_packet(pkt, ui: TerminalUI):
+def decode_and_show(pkt: dict, ui: TerminalUI):
     if "invalid" in pkt:
         ui.inc_bad()
-        return f"[RX INVALID] {format_hex(pkt['invalid'])}"
-
-    msg_type = pkt["type"]
-    seq = pkt["seq"]
-    payload = pkt["payload"]
-
+        ui.print_line(f"[RX INVALID] {format_hex(pkt['invalid'])}")
+        return
+    msg_type = pkt['type']
+    payload = pkt['payload']
+    seq = pkt['seq']
+    ui.inc_packet()
     desc = f"TYPE=0x{msg_type:02X} SEQ={seq:03d} LEN={len(payload):03d}"
 
     if msg_type in (MSG_ACK, MSG_NACK, MSG_HANDSHAKE_ACK):
@@ -221,25 +130,20 @@ def decode_packet(pkt, ui: TerminalUI):
             st = payload[4]
             ui.update_state(st)
             desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)}"
-
             if msg_type == MSG_HANDSHAKE_ACK:
                 ui.mark_handshake_ack()
 
     elif msg_type == MSG_HEARTBEAT:
-    	if len(payload) >= 7:
+        if len(payload) >= 7:
             ts = u32_from_le(payload[0:4])
             st = payload[4]
             startup_step = payload[5]
             ctr = payload[6]
-
             ui.update_state(st)
             ui.mark_heartbeat()
-
             desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)}"
-
-            if st == 0:  # SYS_STARTUP_SEQUENCE
+            if st == 0:
                 desc += f" STARTUP_STEP={startup_step}"
-
             desc += f" HB_CTR={ctr}"
 
     elif msg_type == MSG_TELEMETRY_PUSH:
@@ -251,134 +155,93 @@ def decode_packet(pkt, ui: TerminalUI):
             ui.update_state(st)
             desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} FLOW={flow}mL/min TOTAL={total}mL"
 
-    return f"[RX] {desc} | PAYLOAD: {format_hex(payload)}"
+    ui.print_line(f"[RX] {desc} | PAYLOAD: {format_hex(payload)}")
 
 
-def keyboard_thread(ui: TerminalUI, ser: serial.Serial, hb_ms, tel_ms, send_ack, extra_bytes, stop_event):
-    seq = 0
-    old_settings = termios.tcgetattr(sys.stdin)
-
+def keyboard_loop(ui: TerminalUI, comm: MCUComm, hb_ms: int, tel_ms: int, send_ack: bool, extra_bytes: bytes, stop_event: threading.Event):
+    old = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-
+        seq = 0
         while not stop_event.is_set():
             r, _, _ = select.select([sys.stdin], [], [], 0.1)
             if not r:
                 continue
-
             ch = sys.stdin.read(1)
             if not ch:
                 continue
-
             ch = ch.lower()
-
-            if ch == "q":
+            if ch == 'q':
                 stop_event.set()
                 ui.running = False
                 return
-
-            if ch == "h":
-                # Existing handshake code preserved
-                payload = bytearray()
-                payload += u16_le(hb_ms)
-                payload += u16_le(tel_ms)
-                payload.append(1 if send_ack else 0)
-
-                if extra_bytes:
-                    payload += extra_bytes
-
-                frame = build_frame(MSG_HANDSHAKE, seq, payload)
-                ser.write(frame)
-
-                ui.print_packet_line(
-                    f"[TX] HANDSHAKE SEQ={seq} HB={hb_ms}ms TEL={tel_ms}ms ACKFLAG={send_ack} EXTRA={format_hex(extra_bytes)}"
-                )
-
-                seq = (seq + 1) & 0xFF
-
-            # --- New keys for stepper emulation ---
-            elif ch == "1":
-                pkt = stepper_gohome_ack()
-                ser.write(pkt)
-                ui.print_packet_line(f"[TX] Stepper GoHome Ack: {format_hex(pkt)}")
-
-            elif ch == "2":
-                pkt = stepper_setzero_ack()
-                ser.write(pkt)
-                ui.print_packet_line(f"[TX] Stepper SetZero Ack: {format_hex(pkt)}")
-
-            # You can add '3' or more keys to simulate additional packets if needed
-
+            if ch == 'h':
+                seq = comm.send_handshake(hb_ms, tel_ms, send_ack, extra_bytes)
+                ui.print_line(f"[TX] HANDSHAKE SEQ={seq} HB={hb_ms}ms TEL={tel_ms}ms ACKFLAG={send_ack} EXTRA={format_hex(extra_bytes)}")
+            elif ch == '1':
+                pkt = comm.build_raw_stepper_gohome_ack()
+                with comm._lock:
+                    # direct low-level write for dev emulation
+                    if comm._ser:
+                        comm._ser.write(pkt)
+                ui.print_line(f"[TX] Stepper GoHome Ack: {format_hex(pkt)}")
+            elif ch == '2':
+                pkt = comm.build_raw_stepper_setzero_ack()
+                with comm._lock:
+                    if comm._ser:
+                        comm._ser.write(pkt)
+                ui.print_line(f"[TX] Stepper SetZero Ack: {format_hex(pkt)}")
     finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="MCU Serial Monitor with Handshake Trigger (press H)")
+    parser = argparse.ArgumentParser(description="MCU Serial Monitor")
     parser.add_argument("--port", required=True)
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--hb", type=int, default=500)
     parser.add_argument("--tel", type=int, default=1000)
     parser.add_argument("--send-ack", type=int, default=1)
     parser.add_argument("--extra", default="")
-
     args = parser.parse_args()
 
     extra_bytes = bytes.fromhex(args.extra) if args.extra else b""
 
-    ser = serial.Serial(args.port, args.baud, timeout=0.01)
-
     ui = TerminalUI()
-    ui.clear_screen()
+    ui.clear()
     ui.draw_status_bar()
 
     stop_event = threading.Event()
-    kb = threading.Thread(
-        target=keyboard_thread,
-        args=(ui, ser, args.hb, args.tel, args.send_ack, extra_bytes, stop_event),
-        daemon=True
-    )
+
+    comm = MCUComm(args.port, args.baud)
+    try:
+        comm.open()
+    except Exception as e:
+        logger.exception("failed to open serial port")
+        sys.exit(1)
+
+    # register packet callback
+    comm.register_callback(None, lambda pkt: decode_and_show(pkt, ui))
+
+    kb = threading.Thread(target=keyboard_loop, args=(ui, comm, args.hb, args.tel, bool(args.send_ack), extra_bytes, stop_event), daemon=True)
     kb.start()
 
-    parser_obj = PacketParser()
-    last_status_refresh = 0
-
-    def sigint_handler(sig, frame):
-        stop_event.set()
-        ui.running = False
-
-    signal.signal(signal.SIGINT, sigint_handler)
-
     try:
+        last_refresh = 0
         while ui.running and not stop_event.is_set():
-            data = ser.read(256)
-            if data:
-                for b in data:
-                    pkt = parser_obj.feed(b)
-                    if pkt is not None:
-                        if "invalid" in pkt:
-                            ui.inc_bad()
-                            line = f"[RX INVALID] {format_hex(pkt['invalid'])}"
-                        else:
-                            ui.inc_packet()
-                            line = decode_packet(pkt, ui)
-                        ui.print_packet_line(line)
-
             now = time.time()
-            if now - last_status_refresh > 0.2:
+            if now - last_refresh >= 0.2:
                 ui.draw_status_bar()
-                last_status_refresh = now
-
-            time.sleep(0.001)
-
+                last_refresh = now
+            time.sleep(0.01)
     finally:
         stop_event.set()
         ui.running = False
         kb.join(timeout=1.0)
-        ser.close()
+        comm.close()
         sys.stdout.write("\033[0m\033[r\n")
         sys.stdout.flush()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
-
