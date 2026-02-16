@@ -8,5 +8,5 @@
 ../Core/Src/comms.c:140:6:Comms_SendNack	3
 ../Core/Src/comms.c:151:6:Comms_SendTelemetry	2
 ../Core/Src/comms.c:166:6:Comms_SendHeartbeat	3
-../Core/Src/comms.c:188:6:Comms_Process	50
-../Core/Src/comms.c:455:6:Comms_Tick	7
+../Core/Src/comms.c:193:6:Comms_Process	50
+../Core/Src/comms.c:460:6:Comms_Tick	7

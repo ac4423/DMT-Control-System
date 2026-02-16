@@ -14,5 +14,5 @@ void Comms_SendHeartbeat(void);
 typedef void (*Comms_OnHandshake_t)(uint16_t telemetry_ms, uint8_t send_ack);
 void Comms_RegisterHandshakeCb(Comms_OnHandshake_t cb);
 
-extern volatile uint32_t heartbeat_counter;
+extern volatile uint16_t heartbeat_counter;
 

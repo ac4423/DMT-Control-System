@@ -26,7 +26,7 @@ volatile uint16_t heartbeat_period_ms;
 volatile uint8_t send_ack_and_nack_packets;
 volatile uint8_t self_op_enabled;
 */
-volatile uint32_t heartbeat_counter;
+volatile uint16_t heartbeat_counter;
 
 /* state access */
 extern SysState_t StateMachine_GetState(void);
@@ -163,25 +163,30 @@ void Comms_SendTelemetry(void) {
 
 /* Heartbeat: timestamp(4), state(1), optional free field (e.g. heartbeat counter) -> 5 bytes */
 
-void Comms_SendHeartbeat(void) {
+void Comms_SendHeartbeat(void)
+{
     if (!comms_uart) return;
 
     SysState_t st = StateMachine_GetState();
 
-    uint8_t payload[7];
+    uint8_t payload[8];
+
     write_u32_le(&payload[0], SYSTEM_TICK);
     payload[4] = (uint8_t)st;
 
     if (st == SYS_STARTUP_SEQUENCE) {
-        payload[5] = StateMachine_GetStartupStep();  // startup mode/stage indicator
+        payload[5] = StateMachine_GetStartupStep();
     } else {
         payload[5] = 0;
     }
 
+    // 16-bit heartbeat counter (little endian)
     payload[6] = (uint8_t)(heartbeat_counter & 0xFF);
+    payload[7] = (uint8_t)((heartbeat_counter >> 8) & 0xFF);
+
     heartbeat_counter++;
 
-    _send_frame(MSG_HEARTBEAT, seq_counter++, payload, 7);
+    _send_frame(MSG_HEARTBEAT, seq_counter++, payload, 8);
 }
 
 /* Parser: extended to handle handshake and config requests and flow requests*/
