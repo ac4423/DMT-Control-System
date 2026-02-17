@@ -129,17 +129,17 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
-//	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // start TIM3 for PWM for injection pump
-//	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1); // start TIM5 for flowmeter input capture.
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); // start TIM3 for PWM for injection pump
+	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_1); // start TIM5 for flowmeter input capture.
 //	
 //	// Custom Init functions:
-//	InjectionAndFlow_Init();
-//	flags_init();
+	InjectionAndFlow_Init();
+	flags_init();
 //	
 //	// in main() after HAL and peripheral init:
 //	
-//	// ComputerBridge_Init();    // sets up comms
-//	StateMachine_Init();      // sets state to SYS_STARTUP
+//	// ComputerBridge_Init();    // sets up comms // (now unused)
+	StateMachine_Init();      // sets state to SYS_STARTUP
 //	
 	Comms_Init(USART1); // set up comms
 	UartHAL_FlushRx(USART1);

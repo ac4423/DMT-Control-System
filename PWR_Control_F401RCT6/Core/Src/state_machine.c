@@ -152,10 +152,24 @@ void StateMachine_ProcessTick(void) {
 
         case SYS_RUNNING_PI:
             /* Normal operation controlled by Pi. Flow schedule processed elsewhere. */
+        	FlowMeter_UpdateInstantaneous();
+			FlowMeter_UpdateTotal();
+			if (!PWM_DEBUG) {
+				update_pump_state();
+			}
+			// this will only run if we set the debug flag upon compile. Expect broken behaviour if you keep both
+			// update_pump_state(); and GenerateSawWaveDebug(); running at the same time.
+			if (PWM_DEBUG) {
+				GenerateSawWaveDebug();
+			}
             break;
 
         case SYS_STANDALONE_OPERATION:
             /* Run autonomous operation: hand off to flow schedule processing */
+        	// nothing for now
+        	if (PWM_DEBUG) {
+				GenerateSawWaveDebug();
+			}
             break;
 
         case SYS_ERROR_SHUTDOWN:

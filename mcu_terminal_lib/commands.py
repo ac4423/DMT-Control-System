@@ -195,6 +195,79 @@ class CommandProcessor:
                         self.ui.print_cmd("[CMD ERR] serial not open")
                 return
 
+            # send scheduled desired flow (mL/min)
+            if cmd in ("flow", "f"):
+                if len(tokens) < 2:
+                    self.ui.print_cmd("[CMD] usage: flow <mL/min>")
+                    return
+                try:
+                    flow = int(tokens[1], 0)  # allow decimal and 0x hex if provided
+                    if flow < 0:
+                        raise ValueError("negative")
+                except ValueError:
+                    self.ui.print_cmd("[CMD ERR] invalid flow value (must be non-negative integer)")
+                    return
+
+                try:
+                    seq = self.comm.send_desired_flow(flow)
+                    self.ui.print_cmd(f"[TX] DESIRED_FLOW SEQ={seq} FLOW={flow}mL/min")
+                except Exception as e:
+                    logger.exception("failed send desired flow")
+                    self.ui.print_cmd(f"[CMD ERR] send desired flow failed: {e}")
+                return
+
+            # send immediate desired flow
+            if cmd in ("flow-immediate", "flow-now", "fi"):
+                if len(tokens) < 2:
+                    self.ui.print_cmd("[CMD] usage: flow-immediate <mL/min>")
+                    return
+                try:
+                    flow = int(tokens[1], 0)
+                    if flow < 0:
+                        raise ValueError("negative")
+                except ValueError:
+                    self.ui.print_cmd("[CMD ERR] invalid flow value (must be non-negative integer)")
+                    return
+
+                try:
+                    seq = self.comm.send_desired_flow_immediate(flow)
+                    self.ui.print_cmd(f"[TX] DESIRED_FLOW_IMMEDIATE SEQ={seq} FLOW={flow}mL/min")
+                except Exception as e:
+                    logger.exception("failed send desired flow immediate")
+                    self.ui.print_cmd(f"[CMD ERR] send desired flow immediate failed: {e}")
+                return
+
+            # Pause (freeze) / resume (unfreeze) incoming packets display.
+            if cmd in ("pause"):
+                # optional arg: on|off|1|0
+                new_state = None
+                if len(tokens) >= 2:
+                    arg = tokens[1].lower()
+                    if arg in ("on", "1", "true", "yes"):
+                        new_state = True
+                    elif arg in ("off", "0", "false", "no"):
+                        new_state = False
+                if new_state is None:
+                    # toggle
+                    new_state = not getattr(self.ui, "packet_freeze", False)
+
+                try:
+                    self.ui.set_packet_freeze(bool(new_state))
+                    self.ui.print_cmd(f"[CMD] packets {'paused' if new_state else 'resumed'}")
+                except Exception as e:
+                    logger.exception("failed to set packet freeze")
+                    self.ui.print_cmd(f"[CMD ERR] set freeze failed: {e}")
+                return
+
+            if cmd in ("resume"):
+                try:
+                    self.ui.set_packet_freeze(False)
+                    self.ui.print_cmd("[CMD] packets resumed")
+                except Exception as e:
+                    logger.exception("failed to resume packets")
+                    self.ui.print_cmd(f"[CMD ERR] resume failed: {e}")
+                return
+
             self.ui.print_cmd(f"[CMD ERR] unknown command: {cmd}. Type 'help' for commands.")
 
         except Exception:
@@ -207,6 +280,10 @@ class CommandProcessor:
             "  h, handshake [--hb N] [--tel N] [--send-ack 0|1] [--extra HEX]  Send handshake (overrides defaults)",
             "  1, emu1                 Send emulated Stepper GoHome Ack packet (dev)",
             "  2, emu2                 Send emulated Stepper SetZero Ack packet (dev)",
+            "  flow <mL/min>, f         Send scheduled desired flow (queued)",
+            "  flow-immediate <mL/min>, fi, flow-now  Send flow immediately",
+            "  pause                   Pause (freeze) incoming packet display (toggle)",
+            "  resume                  Resume packet display and flush buffered lines",
             "  set <key> <value>       Change runtime defaults or UI sizes.",
             "                          Keys: hb, tel, send-ack, extra, baud, packet_lines, cmd_lines",
             "  status                  Show current runtime defaults + UI sizes",
@@ -226,5 +303,12 @@ class CommandProcessor:
             f"send_ack={s.get('send_ack')} extra={s.get('extra')} "
             f"baud={s.get('baud')} port={s.get('port')}"
         )
-        self.ui.print_cmd(f"[STATUS] ui: packet_lines={self.ui.packet_lines} cmd_lines={self.ui.cmd_lines}")
+
+        buf_count = len(self.ui._packet_freeze_buf) if hasattr(self.ui, "_packet_freeze_buf") else 0
+        freeze_state = "ON" if getattr(self.ui, "packet_freeze", False) else "OFF"
+
+        self.ui.print_cmd(
+            f"[STATUS] ui: packet_lines={self.ui.packet_lines} cmd_lines={self.ui.cmd_lines} "
+            f"packets_paused={freeze_state} buffered={buf_count}"
+        )
 

@@ -6,12 +6,10 @@
 
 /* ================= Debug / Config Features ================= */
 
-#define SKIP_CRC_CHECK   1   // set to 1 to ignore CRC and accept all messages
 #define SKIP_STARTUP_SEQUENCE 1
-
 #define ENABLE_USB_SERIAL_DEBUG      0
-#define PWM_DEBUG 1
-#define RECORD_PULSE_TIMESTAMPS 1
+#define SERIAL_SEND_MS  200    // time period of how often to send serial USB debug data
+#define PWM_DEBUG 0
 #define ENABLE_ECHO_DEBUG 0
 
 /* ================= Serial Comms ================= */
@@ -36,17 +34,18 @@
 
 /* ================= Flowmeter / pump / etc ================= */
 
+#define RECORD_PULSE_TIMESTAMPS 1
+
 #define SHORT_TERM_PULSE_BUFFER_SIZE 50
 
 #define FLOW_WINDOW_MS   100     // averaging window for instantaneous flow rate
-
-#define SERIAL_SEND_MS  200    // time period of how often to send serial USB debug data
 
 /* ================= Flowmeter ================= */
 #define FLOW_PULSES_PER_LITRE   5880
 
 /* ================= Pump Control ================= */
-#define ENABLE_LOOKUP_TABLE 1
+#define ENABLE_LOOKUP_TABLE 0
+#define DEFAULT_ENABLE_PI_CONTROL 1
 
 /* ================= Pump Control ================= */
 
@@ -57,14 +56,13 @@
 
 /* --- Duty limits --- */
 #define PUMP_DUTY_MIN     0U
-#define PUMP_DUTY_MAX     49U
+#define PUMP_DUTY_MAX     99U
 
 /* --- PI-control: defaults (can be overwritten by Pi) --- */
 #define DEFAULT_PI_Kp 0.002f
 #define DEFAULT_PI_Ki 0.001f
-#define DEFAULT_ENABLE_PI_CONTROL 1
 
-#define FLOW_SCHEDULE_MIN_LOOKAHEAD  0
+#define FLOW_SCHEDULE_MIN_LOOKAHEAD  0 // keep this at zero for now.
 #define FLOW_DIFF_LUT_THRESHOLD_MLMIN 500
 
 #define CAL_STEP_DUTY     5U
@@ -79,7 +77,6 @@
 #define UNPOPULATED_ELEMENT_MARKER 65532u // indicates unpopulated -- this is added upon initialisation.
 #endif
 
-#if PWM_DEBUG
 /* ---------------- PWM Saw Debug ---------------- */
 #define SAW_PWM_MIN 0 // minimum duty (timer counts)
 #define SAW_PWM_MAX 99 // maximum duty (timer counts)
@@ -88,7 +85,6 @@
 static uint32_t saw_pwm_duty = SAW_PWM_MIN;
 static int8_t saw_direction = 1; // +1 rising, -1 falling
 //static uint8_t saw_debug_enable = 1; // set to 0 to disable debug
-#endif
 
 /* ================= Exported globals (storage + externs) ================= */
 

@@ -38,7 +38,7 @@ void InjectionAndFlow_Init(void)
     Flow_State.total_ml = 0;
 
     Pump_Control.duty_pump = 0;
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);  // Ensure PWM = 0
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);  // Ensure PWM = 0 (timer3)
     Pump_Control.pump_flag = 0;
     Pump_Control.pump_counter = 0;
 
@@ -47,11 +47,9 @@ void InjectionAndFlow_Init(void)
         Flow_State.delta_accumulator = 0;
     #endif
 
-    #if ENABLE_PI_CONTROL
-        Pump_Control.kp = PI_Kp;    // initial proportional gain
-        Pump_Control.ki = PI_Ki;    // initial integral gain
-        Pump_Control.pi_integral = 0.0f;
-    #endif
+	Pump_Control.kp = PI_Kp;    // initial proportional gain
+	Pump_Control.ki = PI_Ki;    // initial integral gain
+	Pump_Control.pi_integral = 0.0f;
 
     __enable_irq();
 
@@ -220,7 +218,6 @@ uint32_t FlowMeter_GetTotal_mL(void)
     return Flow_State.total_ml;
 }
 
-#if ENABLE_PI_CONTROL
 void PumpControl_UpdatePI(void)
 {
     /*
@@ -244,7 +241,6 @@ void PumpControl_UpdatePI(void)
 
     Pump_Control.duty_pump = (uint32_t)duty;
 }
-#endif
 
 void update_pump_state(void)
 {
@@ -285,13 +281,13 @@ void update_pump_state(void)
         }
         #endif
 
-        #if ENABLE_PI_CONTROL
-            // Use PI controller only when LUT not triggered
+        #if DEFAULT_ENABLE_PI_CONTROL
+            // Use PI controller
             PumpControl_UpdatePI();
         #endif
 
         // Apply new pump duty
-        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, Pump_Control.duty_pump);
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump); // timer3 for PWM output
     }
 }
 
@@ -352,7 +348,6 @@ void FlowSchedule_Clear(void)
 
 void GenerateSawWaveDebug(void)
 {
-#if PWM_DEBUG
     if (debug_flag_1) {
         debug_flag_1 = 0;
 
@@ -376,5 +371,4 @@ void GenerateSawWaveDebug(void)
         // Apply PWM directly (bypass PI/LUT)
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, saw_pwm_duty);
     }
-#endif
 }

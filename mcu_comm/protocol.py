@@ -47,6 +47,9 @@ def u32_from_le(b: bytes) -> int:
         raise ValueError("need 4 bytes")
     return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)
 
+def u32_le(v: int) -> bytes:
+    """Return 4-byte little-endian representation of unsigned 32-bit integer."""
+    return bytes([v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF])
 
 class PacketParser:
     """A streaming parser for the simple framed protocol.

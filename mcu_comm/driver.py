@@ -15,7 +15,7 @@ import time
 import logging
 from typing import Callable, Dict, List, Optional
 
-from .protocol import PacketParser, build_frame, xor_crc, u16_le
+from .protocol import PacketParser, build_frame, xor_crc, u16_le, u32_le, MSG_DESIRED_FLOW, MSG_DESIRED_FLOW_IMMEDIATE
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,26 @@ class MCUComm:
         if extra:
             payload += extra
         return self.send_frame(0x10, bytes(payload))
+
+    def send_desired_flow(self, flow_ml_per_min: int) -> int:
+        """
+        Send a scheduled desired flow command (MSG_DESIRED_FLOW).
+        flow_ml_per_min: unsigned 32-bit integer mL/min
+        Returns the sequence number used for the frame.
+        """
+        if not (0 <= flow_ml_per_min <= 0xFFFFFFFF):
+            raise ValueError("flow_ml_per_min out of range 0..0xFFFFFFFF")
+        payload = u32_le(flow_ml_per_min)
+        return self.send_frame(MSG_DESIRED_FLOW, payload)
+
+    def send_desired_flow_immediate(self, flow_ml_per_min: int) -> int:
+        """
+        Send an immediate desired flow command (MSG_DESIRED_FLOW_IMMEDIATE).
+        """
+        if not (0 <= flow_ml_per_min <= 0xFFFFFFFF):
+            raise ValueError("flow_ml_per_min out of range 0..0xFFFFFFFF")
+        payload = u32_le(flow_ml_per_min)
+        return self.send_frame(MSG_DESIRED_FLOW_IMMEDIATE, payload)
 
     # Convenience emulation helpers (kept for development)
     @staticmethod

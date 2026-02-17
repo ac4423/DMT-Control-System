@@ -60,6 +60,10 @@ class TerminalUI:
         self._packet_lines_buf: list[str] = []
         self._cmd_lines_buf: list[str] = []
 
+        # packet freeze / buffer (new, mirrors ui_linux)
+        self.packet_freeze = False
+        self._packet_freeze_buf: list[str] = []
+
         # prompt state
         self.cmd_buffer = ""
         self.prompt = "> "
@@ -169,7 +173,11 @@ class TerminalUI:
         )
         if self._height < min_needed:
             # if terminal too small, reduce cmd_lines to fit
-            available = max(1, self._height - (STATUS_ROWS + self.packet_lines + SEPARATOR_ROWS + PROMPT_ROWS))
+            available = max(
+                1,
+                self._height
+                - (STATUS_ROWS + self.packet_lines + SEPARATOR_ROWS + PROMPT_ROWS),
+            )
             self.cmd_lines = max(1, available)
 
         # coordinates (0-based)
@@ -228,6 +236,9 @@ class TerminalUI:
                 f" | Packets: {self.packet_count:<6}"
                 f" | Bad: {self.bad_packets:<4}"
             )
+
+            if getattr(self, "packet_freeze", False):
+                line += " | PACKETS PAUSED"
 
             try:
                 self.status_win.erase()
@@ -300,6 +311,15 @@ class TerminalUI:
                 cmd_display = (self.prompt + self.cmd_buffer)[: self._width - 1]
                 hint_line = f" {self.hint}"[: self._width - 1]
 
+                # If packets are frozen, include buffered count
+                if getattr(self, "packet_freeze", False):
+                    buf_count = len(self._packet_freeze_buf)
+                    extra = f"  [PACKETS PAUSED: {buf_count} buffered]"
+                    # ensure we don't exceed width
+                    remaining = self._width - 1 - len(hint_line)
+                    if remaining > 0:
+                        hint_line = (hint_line + extra)[: self._width - 1]
+
                 # First line: prompt + buffer
                 self.prompt_win.addnstr(0, 0, cmd_display, self._width - 1)
                 # Second line: hint
@@ -307,10 +327,9 @@ class TerminalUI:
 
                 # Move cursor to correct position within prompt window
                 # curses uses absolute coordinates, so compute global row/col
-                # getbegyx returns (y, x) of the prompt_win
                 begy, begx = self.prompt_win.getbegyx()
                 cursor_x = min(len(self.prompt + self.cmd_buffer), self._width - 1)
-                cursor_y = begy
+                cursor_y = begy  # place on first line of prompt window (global y)
                 # position cursor visually
                 try:
                     curses.setsyx(cursor_y, cursor_x)
@@ -325,12 +344,28 @@ class TerminalUI:
 
     # ----------------- public printing methods -----------------
     def print_packet(self, text: str):
+        """
+        If packet_freeze is True, buffer packets (bounded). Otherwise append to visible
+        packet history and redraw. Mirrors ui_linux behavior.
+        """
         with self._lock:
+            # If paused, buffer incoming packet lines instead of showing them
+            if getattr(self, "packet_freeze", False):
+                self._packet_freeze_buf.append(text)
+                # protect against runaway memory growth in pathological cases
+                if len(self._packet_freeze_buf) > 10000:
+                    # drop oldest
+                    self._packet_freeze_buf.pop(0)
+                # Update prompt (shows buffer count). Do not redraw packet window.
+                self.draw_input_prompt()
+                return
+
             self._packet_lines_buf.append(text)
             if len(self._packet_lines_buf) > 1000:
                 # keep a bounded history to avoid memory bloat
                 self._packet_lines_buf = self._packet_lines_buf[-1000:]
             # trim to the configured view size handled by redraw
+            # _redraw_packet_window will only show last self.packet_lines lines
             self._redraw_packet_window()
             self.draw_input_prompt()
 
@@ -363,6 +398,45 @@ class TerminalUI:
     def mark_handshake_ack(self):
         with self._lock:
             self.last_handshake_ack_time = time.time()
+
+    def set_packet_freeze(self, freeze: bool):
+        """
+        Enable/disable packet freezing. When disabling (unpause),
+        buffered packets are flushed into the packet window (keeps last N lines).
+        This method is thread-safe and posts a sys message about flush count.
+        """
+        msg = None
+        with self._lock:
+            if bool(freeze) == bool(self.packet_freeze):
+                return  # no change
+
+            self.packet_freeze = bool(freeze)
+
+            if not self.packet_freeze:
+                # unpausing: flush buffer into visible packet window
+                if self._packet_freeze_buf:
+                    flushed = len(self._packet_freeze_buf)
+                    self._packet_lines_buf.extend(self._packet_freeze_buf)
+                    # trim to last N lines that fit
+                    if len(self._packet_lines_buf) > self.packet_lines:
+                        self._packet_lines_buf = self._packet_lines_buf[-self.packet_lines :]
+                    self._packet_freeze_buf = []
+                    # redraw packet window and prompt
+                    self._redraw_packet_window()
+                    self.draw_input_prompt()
+                    msg = f"[SYS] Unpaused packets — {flushed} lines flushed"
+                else:
+                    # nothing buffered, just redraw to remove indicator
+                    self._redraw_packet_window()
+                    self.draw_input_prompt()
+            else:
+                # pausing: update prompt and notify
+                self.draw_input_prompt()
+                msg = "[SYS] Packets paused — incoming packets will be buffered"
+
+        # print_cmd acquires the lock itself; call it outside our lock to avoid deadlock
+        if msg:
+            self.print_cmd(msg)
 
     # ----------------- runtime resize helpers -----------------
     def set_packet_lines(self, n: int):
@@ -495,5 +569,4 @@ def command_input_loop(ui: TerminalUI, processor, stop_event: threading.Event):
         except Exception:
             logger.exception("error in windows command_input_loop")
             time.sleep(poll_interval)
-
 

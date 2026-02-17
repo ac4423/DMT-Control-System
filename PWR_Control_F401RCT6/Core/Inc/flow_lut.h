@@ -2,10 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* --- Duty limits --- */
-#define PUMP_DUTY_MIN     0U
-#define PUMP_DUTY_MAX     49U
-
 /* --- Calibration parameters --- */
 #define CAL_STEP_DUTY     5U       // duty increment during calibration
 #define CAL_STABILIZE_MS  500      // wait time at each duty for flow to stabilize

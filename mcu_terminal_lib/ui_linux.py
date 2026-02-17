@@ -47,6 +47,10 @@ class TerminalUI:
         self.prompt = "> "
         self.hint = "DMT-6 Nuclear Thermal-Hydraulics Rig v1.0.0"
 
+        # packet freeze / buffer
+        self.packet_freeze = False
+        self._packet_freeze_buf = []  # buffered packet lines while frozen
+
     # --- terminal control helpers ---
     def enter_alt_screen(self):
         sys.stdout.write(f"{ESC}[?1049h")
@@ -124,6 +128,9 @@ class TerminalUI:
                 f" | Bad: {self.bad_packets:<4}"
             )
 
+            if getattr(self, "packet_freeze", False):
+                line += " | PACKETS PAUSED"
+
             # Position and write the status bar (no trailing newline)
             sys.stdout.write(f"{ESC}[{STATUS_ROW};1H{ESC}[2K{line[:120]}")
             sys.stdout.flush()
@@ -184,6 +191,10 @@ class TerminalUI:
             # write prompt line and hint line without newlines
             sys.stdout.write(f"{ESC}[{pr};1H{ESC}[2K{cmd_display[:120]}")
             hint_line = f" {self.hint}"
+            if getattr(self, "packet_freeze", False):
+                buf_count = len(self._packet_freeze_buf)
+                hint_line += f"  [PACKETS PAUSED: {buf_count} buffered]"
+            sys.stdout.write(f"{ESC}[{pr + 1};1H{ESC}[2K{hint_line[:120]}")
             sys.stdout.write(f"{ESC}[{pr + 1};1H{ESC}[2K{hint_line[:120]}")
 
             # set cursor column after the prompt text
@@ -200,6 +211,18 @@ class TerminalUI:
     # ------- public printing methods -------
     def print_packet(self, text: str):
         with self._lock:
+            # If paused, buffer incoming packet lines instead of showing them
+            if getattr(self, "packet_freeze", False):
+                self._packet_freeze_buf.append(text)
+                # protect against runaway memory growth in pathological cases
+                if len(self._packet_freeze_buf) > 10000:
+                    # drop oldest
+                    self._packet_freeze_buf.pop(0)
+                # Update prompt (shows buffer count). Do not redraw packet window.
+                self.draw_input_prompt()
+                return
+
+            # Normal behavior: append to visible packet window and redraw
             self._packet_lines_buf.append(text)
             if len(self._packet_lines_buf) > self.packet_lines:
                 self._packet_lines_buf.pop(0)
@@ -229,6 +252,45 @@ class TerminalUI:
         with self._lock:
             self.last_state = st
             self.last_state_name = STATE_NAMES.get(st, f"UNKNOWN({st})")
+
+    def set_packet_freeze(self, freeze: bool):
+        """
+        Enable/disable packet freezing. When disabling (unpause),
+        buffered packets are flushed into the packet window (keeps last N lines).
+        This method is thread-safe and posts a sys message about flush count.
+        """
+        msg = None
+        with self._lock:
+            if bool(freeze) == bool(self.packet_freeze):
+                return  # no change
+
+            self.packet_freeze = bool(freeze)
+
+            if not self.packet_freeze:
+                # unpausing: flush buffer into visible packet window
+                if self._packet_freeze_buf:
+                    flushed = len(self._packet_freeze_buf)
+                    self._packet_lines_buf.extend(self._packet_freeze_buf)
+                    # trim to last N lines that fit
+                    if len(self._packet_lines_buf) > self.packet_lines:
+                        self._packet_lines_buf = self._packet_lines_buf[-self.packet_lines :]
+                    self._packet_freeze_buf = []
+                    # redraw packet window and prompt
+                    self._redraw_packet_window()
+                    self.draw_input_prompt()
+                    msg = f"[SYS] Unpaused packets — {flushed} lines flushed"
+                else:
+                    # nothing buffered, just redraw to remove indicator
+                    self._redraw_packet_window()
+                    self.draw_input_prompt()
+            else:
+                # pausing: update prompt and notify
+                self.draw_input_prompt()
+                msg = "[SYS] Packets paused — incoming packets will be buffered"
+
+        # print_cmd acquires the lock itself; call it outside our lock to avoid deadlock
+        if msg:
+            self.print_cmd(msg)
 
     def mark_heartbeat(self):
         with self._lock:

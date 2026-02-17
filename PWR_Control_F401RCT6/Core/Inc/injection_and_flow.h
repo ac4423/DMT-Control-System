@@ -84,6 +84,10 @@ uint8_t FlowSchedule_PushImmediate(uint32_t flow_lmin); // set the immediate flo
 uint16_t FlowSchedule_Depth(void);
 void FlowSchedule_Clear(void);
 
+/* ================= Other Functions ================= */
+
+void PumpControl_UpdatePI(void);
+
 /* ================= Debugging ================= */
 
 void GenerateSawWaveDebug(void);

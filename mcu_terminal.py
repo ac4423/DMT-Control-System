@@ -53,7 +53,7 @@ def _load_ui_backend():
 def main():
     parser = argparse.ArgumentParser(description="MCU Serial Monitor (with CLI)")
     parser.add_argument("--port", required=True)
-    parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--baud", type=int, default=256000)
     parser.add_argument("--hb", type=int, default=500)
     parser.add_argument("--tel", type=int, default=1000)
     parser.add_argument("--send-ack", type=int, default=1, choices=[0, 1])
