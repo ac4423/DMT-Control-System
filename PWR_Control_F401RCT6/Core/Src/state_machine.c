@@ -155,7 +155,10 @@ void StateMachine_ProcessTick(void) {
         	FlowMeter_UpdateInstantaneous();
 			FlowMeter_UpdateTotal();
 			if (!PWM_DEBUG) {
+				FlowMeter_UpdateInstantaneous();
+				FlowMeter_UpdateTotal();
 				update_pump_state();
+				Update_Solenoid_State();
 			}
 			// this will only run if we set the debug flag upon compile. Expect broken behaviour if you keep both
 			// update_pump_state(); and GenerateSawWaveDebug(); running at the same time.

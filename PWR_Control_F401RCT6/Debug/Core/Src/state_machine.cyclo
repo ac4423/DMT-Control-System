@@ -5,4 +5,4 @@
 ../Core/Src/state_machine.c:117:6:StateMachine_OnHandshakeAccepted	2
 ../Core/Src/state_machine.c:128:6:StateMachine_TriggerFatal	1
 ../Core/Src/state_machine.c:135:6:StateMachine_ProcessTick	6
-../Core/Src/state_machine.c:185:6:StateMachine_EnterPairing	1
+../Core/Src/state_machine.c:188:6:StateMachine_EnterPairing	1

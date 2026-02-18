@@ -65,6 +65,12 @@ void InjectionAndFlow_Init(void)
     for (uint16_t i = 0; i < SHORT_TERM_PULSE_BUFFER_SIZE; i++) {
         Flow_State.short_term_pulses[i] = UNPOPULATED_ELEMENT_MARKER;
     }
+
+    // Force solenoid valve CLOSED on startup
+    HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, GPIO_PIN_RESET);
+
+    Pump_Control.solenoid_flag = 0;
+    Pump_Control.solenoid_counter = 0;
 }
 
 #if RECORD_PULSE_TIMESTAMPS
@@ -281,7 +287,7 @@ void update_pump_state(void)
         }
         #endif
 
-        #if DEFAULT_ENABLE_PI_CONTROL
+        #if ENABLE_PI_CONTROL
             // Use PI controller
             PumpControl_UpdatePI();
         #endif
@@ -343,6 +349,23 @@ void FlowSchedule_Clear(void)
     Pump_Control.schedule_tail = 0;
     __enable_irq();
 }
+
+//
+
+void Update_Solenoid_State(void)
+{
+    if (Pump_Control.solenoid_flag) {
+        Pump_Control.solenoid_flag = 0;
+
+        if (Pump_Control.duty_pump == 0) {
+            HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, 0);
+        } else {
+            HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, 1);
+        }
+    }
+}
+
+
 
 // -------------------------------- Debugging: --------------------
 

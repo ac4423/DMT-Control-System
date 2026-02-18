@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include "config.h"
 
+#define SOLENOID_GPIO_PORT GPIOB
+#define SOLENOID_GPIO_PIN  GPIO_PIN_12
+
 typedef struct
 {
     // --- Flow pulse counters ---
@@ -47,6 +50,9 @@ typedef struct {
     volatile uint16_t schedule_head;         // next slot to consume
     volatile uint16_t schedule_tail;         // next slot to write
 
+    volatile uint8_t solenoid_flag;
+    volatile uint32_t solenoid_counter;
+
 } PumpControl_t;
 
 extern volatile PumpControl_t Pump_Control;
@@ -87,6 +93,7 @@ void FlowSchedule_Clear(void);
 /* ================= Other Functions ================= */
 
 void PumpControl_UpdatePI(void);
+void Update_Solenoid_State(void);
 
 /* ================= Debugging ================= */
 

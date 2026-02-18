@@ -162,6 +162,15 @@ int main(void)
 //	}
 //	*/
 
+	#if SOLENOID_TEST
+	while (1) {
+		HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, 1);
+		HAL_Delay(1000);
+		HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, 0);
+		HAL_Delay(1000);
+	}
+	#endif
+
 
 	#if ENABLE_ECHO_DEBUG
 	uint8_t rxBuffer[128];
@@ -330,6 +339,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             Pump_Control.pump_flag = 1;
         }
 
+        if (++Pump_Control.solenoid_counter >= MS_TO_TICKS(SOLENOID_UPDATE_PERIOD_MS)) {
+			Pump_Control.solenoid_counter = 0;
+			Pump_Control.solenoid_flag = 1;
+        }
+
         if (++debug_ticker_1 >= 1000) {
             debug_ticker_1 = 0;
             debug_flag_1 = 1;
@@ -340,6 +354,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         } else {
             timer_sync_count = 0;
         }
+
+
     }
 }
 

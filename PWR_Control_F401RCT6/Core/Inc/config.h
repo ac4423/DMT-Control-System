@@ -11,6 +11,7 @@
 #define SERIAL_SEND_MS  200    // time period of how often to send serial USB debug data
 #define PWM_DEBUG 0
 #define ENABLE_ECHO_DEBUG 0
+#define SOLENOID_TEST 0
 
 /* ================= Serial Comms ================= */
 
@@ -39,6 +40,8 @@
 #define SHORT_TERM_PULSE_BUFFER_SIZE 50
 
 #define FLOW_WINDOW_MS   100     // averaging window for instantaneous flow rate
+
+#define SOLENOID_UPDATE_PERIOD_MS  10
 
 /* ================= Flowmeter ================= */
 #define FLOW_PULSES_PER_LITRE   5880
