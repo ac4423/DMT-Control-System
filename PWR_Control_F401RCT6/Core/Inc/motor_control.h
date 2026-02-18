@@ -7,6 +7,4 @@ void motor_test(void);
 void motor_read(void);
 
 
-extern int32_t stepper_pos;
-
 #endif

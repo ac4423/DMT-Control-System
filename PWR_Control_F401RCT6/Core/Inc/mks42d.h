@@ -19,4 +19,6 @@ void readStepperPosTx(uint8_t slaveAddr);
 void readStepperSpeedTx(uint8_t slaveAddr);
 uint8_t readStepperPos(uint8_t ID);
 
+extern volatile int32_t stepper_pos;
+
 #endif

@@ -15,7 +15,7 @@
 /* ================= Serial Comms ================= */
 
 /* default values (can be overwritten by Pi primary/secondary handshake) */
-#define DEFAULT_TELEMETRY_PERIOD_MS 200
+#define DEFAULT_TELEMETRY_PERIOD_MS 10
 #define DEFAULT_HEARTBEAT_PERIOD_MS 500
 #define DEFAULT_SEND_ACK_AND_NACK 1
 #define DEFAULT_SELF_OP_ENABLED 0

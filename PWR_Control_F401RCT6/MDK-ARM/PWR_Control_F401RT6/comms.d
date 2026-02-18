@@ -1,5 +1,6 @@
 pwr_control_f401rt6/comms.o: ..\Core\Src\comms.c ..\Core\Inc\comms.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdint.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal.h \
   ..\Core\Inc\stm32f4xx_hal_conf.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_rcc.h \
@@ -30,7 +31,6 @@ pwr_control_f401rt6/comms.o: ..\Core\Src\comms.c ..\Core\Inc\comms.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim_ex.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_uart.h \
   ..\Core\Inc\uart_hal.h ..\Core\Inc\config.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
   ..\Core\Inc\injection_and_flow.h ..\Core\Inc\main.h \
-  ..\Core\Inc\state_machine.h \
+  ..\Core\Inc\state_machine.h ..\Core\Inc\mks42d.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h ..\Core\Inc\tim.h

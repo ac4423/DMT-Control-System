@@ -71,6 +71,7 @@ volatile bool transmit_data_flag = false;
 volatile bool injection_system_flag = 0;
 
 uint32_t timer_cnt_1s = 0;
+uint8_t timer_cnt_10ms = 0;
 uint32_t usart_count_ms = 0;
 uint32_t stepper_motor_read_count_ms = 0;
 uint32_t timer_sync_count = 0;
@@ -213,6 +214,7 @@ int main(void)
 	Comms_Tick();
 
 //		// Small delay / let other interrupts do work; do not block.
+    motor_read();
 	}
 
 
@@ -302,6 +304,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         if (++timer_cnt_1s >= 10000) {
             timer_cnt_1s = 0;
             motor_flag = true;
+        }
+        
+        if (++timer_cnt_10ms >= 100) {
+            timer_cnt_10ms = 0;
+            motor_read_flag = true;
         }
 
         /*

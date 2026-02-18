@@ -12,6 +12,8 @@ static uint8_t rxBuffer[64];
 // Private helper
 static inline USART_TypeDef* MKS_BUS(void) { return USART2; }
 
+volatile int32_t stepper_pos;
+
 uint8_t getCheckSum(uint8_t *buffer, uint8_t size) {
     uint16_t sum = 0;
     for (uint8_t i = 0; i < size; i++) sum += buffer[i];

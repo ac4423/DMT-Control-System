@@ -4,6 +4,7 @@
 #include "injection_and_flow.h"
 #include "state_machine.h"
 #include "comms.h"
+#include "mks42d.h"
 #include <string.h>
 #include <tim.h>
 
@@ -18,6 +19,9 @@
 #define MSG_DESIRED_FLOW        0x20
 #define MSG_DESIRED_FLOW_IMMEDIATE 0x21
 // #define MSG_TERMS_UPDATE        0x30  /* legacy */
+#define MSG_GO_HOME             0x41
+#define MSG_SET_MIDDLE          0x42
+#define MSG_POSITION_MODE2      0x43
 
 /* Configurable behavior (default values in config.c can be overwritten by handshake) */
 /*
@@ -45,6 +49,10 @@ static uint8_t xor_crc(const uint8_t *data, uint8_t len) {
     for (uint8_t i = 0; i < len; ++i) c ^= data[i];
     return c;
 }
+
+uint8_t stepper_cmnd = 0;
+
+uint32_t set_pulses = 0;
 
 /* --- frame builder --- */
 /* Frame layout (outgoing):
@@ -150,14 +158,33 @@ void Comms_SendNack(uint8_t seq) {
 /* Telemetry: timestamp(4), state(1), flow(4), total_ml(4) -> total 13 bytes */
 void Comms_SendTelemetry(void) {
     if (!comms_uart) return;
-    uint8_t payload[13];
+
+    /* [CHANGE 2] Increase payload size:
+       13 bytes (Original) + 4 bytes (Position) + 4 bytes (Reserved) = 21 bytes */
+    uint8_t payload[21];
+
     uint32_t ts = SYSTEM_TICK;
     uint32_t flow = FlowMeter_GetFlow_mLmin();
     uint32_t total = FlowMeter_GetTotal_mL();
-    write_u32_le(&payload[0], ts);
-    payload[4] = (uint8_t)StateMachine_GetState();
-    write_u32_le(&payload[5], flow);
-    write_u32_le(&payload[9], total);
+    
+    /* Read position atomically-ish (it's volatile) */
+    int32_t current_pos = stepper_pos;
+
+    // --- Original Fields (Bytes 0-12) ---
+    write_u32_le(&payload[0], ts);                  // Bytes 0-3: Timestamp
+    payload[4] = (uint8_t)StateMachine_GetState();  // Byte  4:   State
+    write_u32_le(&payload[5], flow);                // Bytes 5-8: Flow
+    write_u32_le(&payload[9], total);               // Bytes 9-12: Volume
+
+    // --- New Fields (Bytes 13-20) ---
+    
+    // Bytes 13-16: Stepper Position (int32_t)
+    // We cast to uint32_t for the helper, which preserves the bits (2's complement)
+    write_u32_le(&payload[13], (uint32_t)current_pos);
+
+    // Bytes 17-20: Reserved Time (Empty/Zero for now)
+    write_u32_le(&payload[17], 0);
+
     _send_frame(MSG_TELEMETRY_PUSH, seq_counter++, payload, sizeof(payload));
 }
 
@@ -422,6 +449,44 @@ void Comms_Process(void)
                                                 ((uint32_t)payload_buf[3] << 24);
 
                                 FlowSchedule_PushImmediate(flow);
+
+                                if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
+                            }
+                            else
+                            {
+                                if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+                            }
+                            break;
+                            
+                        case MSG_GO_HOME:
+                            /* Payload: None
+                               Action: Hardcoded goHome for slave 0x03 */
+                            stepper_cmnd = GO_HOME;
+
+                            if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
+                            break;
+
+                        case MSG_SET_MIDDLE:
+                            /* Payload: None (0 bytes). 
+                               Action: Hardcoded move to middle.
+                               Func: positionMode2Run(slave, speed, acc, pulses)
+                            */
+                            
+                            // Call the function with your specific hardcoded values
+                            stepper_cmnd = SET_MIDDLE;
+
+                            // Send Acknowledgment
+                            if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
+                            break;
+
+                        case MSG_POSITION_MODE2:
+                            /* Payload: 4 bytes (int32_t Position, Little Endian)
+                               Hardcoded: Slave 0x03, Speed 1000, Acc 150 */
+                            if (tmp_len >= 4)
+                            {
+                                // Use existing helper to read 4 bytes
+                                set_pulses = (int32_t)read_u32_le(payload_buf);
+                                stepper_cmnd = SET_POSITION;
 
                                 if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
                             }
