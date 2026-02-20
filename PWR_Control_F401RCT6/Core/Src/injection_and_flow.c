@@ -278,19 +278,19 @@ void update_pump_state(void)
 
         int32_t flow_diff = (int32_t)Pump_Control.instantaneous_desired_flow - (int32_t)Flow_State.last_flow_mlmin;
 
-        #if ENABLE_LOOKUP_TABLE
-        if (abs(flow_diff) >= FLOW_DIFF_LUT_THRESHOLD_MLMIN) {
-            // Only use LUT if difference is large
-            Pump_Control.duty_pump = FlowLUT_GetDutyForFlow(Pump_Control.instantaneous_desired_flow);
+        if (ENABLE_LOOKUP_TABLE) {
+        	if (abs(flow_diff) >= FLOW_DIFF_LUT_THRESHOLD_MLMIN) {
+				// Only use LUT if difference is large
+				Pump_Control.duty_pump = FlowLUT_GetDutyForFlow(Pump_Control.instantaneous_desired_flow);
 
-            // Skip PI for this tick
+				// Skip PI for this tick
+			}
         }
-        #endif
 
-        #if ENABLE_PI_CONTROL
+        if (ENABLE_PI_CONTROL) {
+        	PumpControl_UpdatePI();
+        }
             // Use PI controller
-            PumpControl_UpdatePI();
-        #endif
 
         // Apply new pump duty
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump); // timer3 for PWM output
@@ -332,11 +332,10 @@ uint8_t FlowSchedule_PushImmediate(uint32_t flow_mlmin)
     Pump_Control.schedule_head = 0;
     Pump_Control.schedule_tail = 0;
 
-    // Push same value enough times to satisfy lookahead
-    for (uint16_t i = 0; i < FLOW_SCHEDULE_MIN_LOOKAHEAD; i++) {
-        Pump_Control.flow_schedule[i] = flow_mlmin;
-    }
-    Pump_Control.schedule_tail = FLOW_SCHEDULE_MIN_LOOKAHEAD;
+    // Always push at least one entry for immediate requests
+    Pump_Control.flow_schedule[0] = flow_mlmin;
+    Pump_Control.schedule_tail = 1;
+
     __enable_irq();
 
     return 1;

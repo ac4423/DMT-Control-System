@@ -154,9 +154,7 @@ void StateMachine_ProcessTick(void) {
             /* Normal operation controlled by Pi. Flow schedule processed elsewhere. */
         	FlowMeter_UpdateInstantaneous();
 			FlowMeter_UpdateTotal();
-			if (!PWM_DEBUG) {
-				FlowMeter_UpdateInstantaneous();
-				FlowMeter_UpdateTotal();
+			if (!(PWM_DEBUG)) {
 				update_pump_state();
 				Update_Solenoid_State();
 			}

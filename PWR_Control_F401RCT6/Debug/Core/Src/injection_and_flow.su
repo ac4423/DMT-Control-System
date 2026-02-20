@@ -12,7 +12,7 @@
 ../Core/Src/injection_and_flow.c:251:6:update_pump_state	24	static
 ../Core/Src/injection_and_flow.c:302:17:FlowSchedule_Depth	16	static
 ../Core/Src/injection_and_flow.c:313:9:FlowSchedule_Push	24	static,ignoring_inline_asm
-../Core/Src/injection_and_flow.c:329:9:FlowSchedule_PushImmediate	24	static,ignoring_inline_asm
-../Core/Src/injection_and_flow.c:345:6:FlowSchedule_Clear	4	static,ignoring_inline_asm
-../Core/Src/injection_and_flow.c:355:6:Update_Solenoid_State	8	static
-../Core/Src/injection_and_flow.c:372:6:GenerateSawWaveDebug	4	static
+../Core/Src/injection_and_flow.c:329:9:FlowSchedule_PushImmediate	16	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:344:6:FlowSchedule_Clear	4	static,ignoring_inline_asm
+../Core/Src/injection_and_flow.c:354:6:Update_Solenoid_State	8	static
+../Core/Src/injection_and_flow.c:371:6:GenerateSawWaveDebug	4	static

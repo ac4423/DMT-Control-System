@@ -9,10 +9,10 @@
 ../Core/Src/injection_and_flow.c:217:10:FlowMeter_GetFlow_mLmin	1
 ../Core/Src/injection_and_flow.c:222:10:FlowMeter_GetTotal_mL	1
 ../Core/Src/injection_and_flow.c:227:6:PumpControl_UpdatePI	3
-../Core/Src/injection_and_flow.c:251:6:update_pump_state	4
+../Core/Src/injection_and_flow.c:251:6:update_pump_state	5
 ../Core/Src/injection_and_flow.c:302:17:FlowSchedule_Depth	2
 ../Core/Src/injection_and_flow.c:313:9:FlowSchedule_Push	2
 ../Core/Src/injection_and_flow.c:329:9:FlowSchedule_PushImmediate	1
-../Core/Src/injection_and_flow.c:345:6:FlowSchedule_Clear	1
-../Core/Src/injection_and_flow.c:355:6:Update_Solenoid_State	3
-../Core/Src/injection_and_flow.c:372:6:GenerateSawWaveDebug	5
+../Core/Src/injection_and_flow.c:344:6:FlowSchedule_Clear	1
+../Core/Src/injection_and_flow.c:354:6:Update_Solenoid_State	3
+../Core/Src/injection_and_flow.c:371:6:GenerateSawWaveDebug	5
