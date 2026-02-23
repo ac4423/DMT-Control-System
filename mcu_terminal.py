@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 mcu_terminal.py -- main entrypoint that wires up UI, commands, and MCUComm.
 
 This file is the only intended entrypoint.
@@ -7,9 +7,31 @@ The UI backend is selected based on platform.
 
 example commands to run the application:
 
+Linux:
+------------------
+virtual environment installation:
+python3 -m venv venv
+source venv/bin/activate
+
+pip install -r requirements_linux.txt
+
+usage examples:
+
 python3 mcu_terminal.py --port /dev/ttyUSB0
 
 python3 mcu_terminal.py --port /dev/ttyUSB0 --hb 200 --tel 500 --baud 256000 --send-ack 1
+
+Windows, Powershell:
+------------------
+check COM port:
+python -m serial.tools.list_ports
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\venv_windows\Scripts\Activate.ps1
+pip install -r requirements_windows.txt
+
+# basic example:
+python .\mcu_terminal.py --port COM3
 
 IF NO PACKETS DISPLAYED IN THE CLI:
 CHECK THAT BAUD RATES MATCH
@@ -37,18 +59,15 @@ def _load_ui_backend():
     Select OS-specific UI module.
 
     Linux/macOS: ui_linux.py
-    Windows: ui_windows.py (not implemented yet, but placeholder for future)
+    Windows: ui_windows.py
     """
     if sys.platform.startswith("win"):
-        # NOTE: we are NOT implementing ui_windows.py yet.
-        raise RuntimeError(
-            "Windows platform detected but ui_windows.py is not implemented yet."
-        )
+        from mcu_terminal_lib.ui_windows import TerminalUI, command_input_loop
+        return TerminalUI, command_input_loop
 
     # Default to POSIX UI
     from mcu_terminal_lib.ui_linux import TerminalUI, command_input_loop
     return TerminalUI, command_input_loop
-
 
 def main():
     parser = argparse.ArgumentParser(description="MCU Serial Monitor (with CLI)")
