@@ -1,5 +1,6 @@
 Core/Src/state_machine.o: ../Core/Src/state_machine.c \
- ../Core/Inc/state_machine.h ../Core/Inc/config.h ../Core/Inc/comms.h \
+ ../Core/Inc/state_machine.h ../Core/Inc/config.h \
+ ../Core/Inc/injection_and_flow.h ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
  ../Core/Inc/stm32f4xx_hal_conf.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h \
@@ -28,11 +29,12 @@ Core/Src/state_machine.o: ../Core/Src/state_machine.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- ../Core/Inc/injection_and_flow.h ../Core/Inc/main.h ../Core/Inc/config.h \
- ../Core/Inc/main.h ../Core/Inc/tim.h ../Core/Inc/mks42d.h
+ ../Core/Inc/config.h ../Core/Inc/main.h ../Core/Inc/tim.h \
+ ../Core/Inc/mks42d.h
 ../Core/Inc/state_machine.h:
 ../Core/Inc/config.h:
-../Core/Inc/comms.h:
+../Core/Inc/injection_and_flow.h:
+../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h:
@@ -61,8 +63,6 @@ Core/Src/state_machine.o: ../Core/Src/state_machine.c \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
-../Core/Inc/injection_and_flow.h:
-../Core/Inc/main.h:
 ../Core/Inc/config.h:
 ../Core/Inc/main.h:
 ../Core/Inc/tim.h:

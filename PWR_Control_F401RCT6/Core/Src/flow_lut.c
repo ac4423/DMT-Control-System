@@ -4,9 +4,7 @@
 #include "stm32f4xx_hal.h"
 #include <stdio.h>
 #include "tim.h"
-#if ENABLE_USB_SERIAL_DEBUG
-#include "usbd_cdc_if.h"
-#endif
+// #include "usbd_cdc_if.h"
 
 /* --- General interpolation --- */
 uint16_t FlowLUT_GetDutyForFlow(uint32_t desired_flow_mlmin)

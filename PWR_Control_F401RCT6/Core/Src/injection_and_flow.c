@@ -7,9 +7,7 @@
 #include "main.h"
 #include "tim.h"
 #include "usart.h"
-#if ENABLE_USB_SERIAL_DEBUG
-#include "usb_device.h"
-#endif
+// #include "usb_device.h"
 #include "flow_lut.h"
 
 /* Global flow state instance */
@@ -18,10 +16,6 @@ volatile PumpControl_t Pump_Control;
 
 /* --- External HAL tick function --- */
 extern uint32_t HAL_GetTick(void);
-
-/* debug flag definitions*/
-volatile uint8_t debug_flag_1;
-volatile uint16_t debug_ticker_1;
 
 /* Initialization */
 void InjectionAndFlow_Init(void)
@@ -47,8 +41,8 @@ void InjectionAndFlow_Init(void)
         Flow_State.delta_accumulator = 0;
     #endif
 
-	Pump_Control.kp = PI_Kp;    // initial proportional gain
-	Pump_Control.ki = PI_Ki;    // initial integral gain
+	Pump_Control.kp = DEFAULT_PI_Kp;    // initial proportional gain
+	Pump_Control.ki = DEFAULT_PI_Ki;    // initial integral gain
 	Pump_Control.pi_integral = 0.0f;
 
     __enable_irq();
@@ -153,7 +147,7 @@ void FlowMeter_UpdateInstantaneous(void)
     }
 
     uint32_t now = HAL_GetTick();
-    uint32_t window_start = now - FLOW_WINDOW_MS;
+    uint32_t window_start = now - flow_window_ms;
 
     uint16_t pulses_in_window = 0;
     uint16_t oldest_index =
@@ -187,19 +181,8 @@ void FlowMeter_UpdateInstantaneous(void)
     uint32_t delta_ms = t_last - t_first;
     if (delta_ms == 0) delta_ms = 1;
 
-    /*
-        Original:
-            litres = (pulses_in_window - 1) / FLOW_PULSES_PER_LITRE;
-            flow_lmin = litres / (delta_ms / 60000);
-
-        New:
-            ml = litres * 1000
-            flow_mlmin = ml / (delta_ms / 60000)
-                       = ml * 60000 / delta_ms
-    */
-
     uint32_t ml =
-        ((uint32_t)(pulses_in_window - 1) * 1000U) / (uint32_t)FLOW_PULSES_PER_LITRE;
+        ((uint32_t)(pulses_in_window - 1) * 1000U) / (uint32_t)flow_pulses_per_litre;
 
     Flow_State.last_flow_mlmin =
         (uint32_t)(((uint64_t)ml * 60000ULL) / (uint64_t)delta_ms);
@@ -211,7 +194,7 @@ void FlowMeter_UpdateInstantaneous(void)
 void FlowMeter_UpdateTotal(void)
 {
     Flow_State.total_ml =
-        ((uint32_t)Flow_State.pulse_count_total * 1000U) / (uint32_t)FLOW_PULSES_PER_LITRE;
+        ((uint32_t)Flow_State.pulse_count_total * 1000U) / (uint32_t)flow_pulses_per_litre;
 }
 
 uint32_t FlowMeter_GetFlow_mLmin(void)
@@ -233,9 +216,8 @@ void PumpControl_UpdatePI(void)
     float error = (float)Pump_Control.instantaneous_desired_flow - (float)Flow_State.last_flow_mlmin;
 
     // Convert sample time to seconds
-    float dt = (float)PUMP_SAMPLE_TIME_MS / 1000.0f;
+    float dt = (float)pump_sample_time_ms / 1000.0f;
 
-    // Update integral term
     Pump_Control.pi_integral += error * dt;
 
     // Compute PI output
@@ -278,7 +260,7 @@ void update_pump_state(void)
 
         int32_t flow_diff = (int32_t)Pump_Control.instantaneous_desired_flow - (int32_t)Flow_State.last_flow_mlmin;
 
-        if (ENABLE_LOOKUP_TABLE) {
+        if (lookup_table_enabled) {
         	if (abs(flow_diff) >= FLOW_DIFF_LUT_THRESHOLD_MLMIN) {
 				// Only use LUT if difference is large
 				Pump_Control.duty_pump = FlowLUT_GetDutyForFlow(Pump_Control.instantaneous_desired_flow);
@@ -287,7 +269,7 @@ void update_pump_state(void)
 			}
         }
 
-        if (ENABLE_PI_CONTROL) {
+        if (pi_control_enabled) {
         	PumpControl_UpdatePI();
         }
             // Use PI controller

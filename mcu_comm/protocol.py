@@ -22,6 +22,9 @@ MSG_HEARTBEAT = 0x13
 MSG_DESIRED_FLOW = 0x20
 MSG_DESIRED_FLOW_IMMEDIATE = 0x21
 
+# New debug function codes (must match MCU values)
+MSG_SET_PUMP_PWM = 0x30   # payload: [duty:1byte] - PC -> MCU
+MSG_EXIT_SYS_DEBUG = 0x31 # payload: none          - PC -> MCU
 
 def xor_crc(msg_type: int, seq: int, payload: bytes) -> int:
     c = msg_type ^ seq
@@ -130,3 +133,48 @@ class PacketParser:
             return pkt
 
         return None
+
+# Config TLV tags (mirror STM32 config.h)
+CONFIG_TAG_TELEMETRY_PERIOD_MS = 0x01
+CONFIG_TAG_HEARTBEAT_PERIOD_MS = 0x02
+CONFIG_TAG_PI_KP               = 0x03
+CONFIG_TAG_PI_KI               = 0x04
+CONFIG_TAG_ENABLE_PI_CONTROL   = 0x05
+
+# --- add new TLV tags to mirror STM32 config.h ---
+CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG = 0x06  # uint8_t (0/1)
+CONFIG_TAG_SERIAL_SEND_MS          = 0x07  # uint16_t (ms)
+CONFIG_TAG_PWM_DEBUG               = 0x08  # uint8_t (0/1)
+CONFIG_TAG_ENABLE_ECHO_DEBUG       = 0x09  # uint8_t (0/1)
+
+CONFIG_TAG_FLOW_WINDOW_MS          = 0x0A  # uint16_t (ms)
+CONFIG_TAG_FLOW_PULSES_PER_LITRE   = 0x0B  # uint32_t
+CONFIG_TAG_ENABLE_LOOKUP_TABLE     = 0x0C  # uint8_t (0/1)
+CONFIG_TAG_PUMP_SAMPLE_TIME_MS     = 0x0D  # uint16_t (ms)
+
+def build_tlv_field(tag: int, value: bytes) -> bytes:
+    """
+    Build a single TLV field: [tag][len][value...]
+    - tag: 0..255
+    - value: bytes object
+    """
+    if not (0 <= tag <= 0xFF):
+        raise ValueError("tag out of range")
+    if len(value) > 0xFF:
+        raise ValueError("value too long for single TLV field")
+    return bytes([tag, len(value)]) + value
+
+
+def build_config_payload(fields: list) -> bytes:
+    """
+    Build a MSG_CONFIG payload by concatenating TLV fields.
+
+    fields: iterable of (tag:int, value:bytes)
+    returns: bytes (payload)
+    """
+    out = bytearray()
+    for tag, val in fields:
+        out += build_tlv_field(tag, bytes(val))
+    if len(out) > COMMS_MAX_PAYLOAD:
+        raise ValueError("config payload too long")
+    return bytes(out)

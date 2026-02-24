@@ -1,0 +1,6 @@
+../Core/Src/comms_protocol.c:42:12:_read_byte	2
+../Core/Src/comms_protocol.c:50:16:xor_crc_calc	2
+../Core/Src/comms_protocol.c:58:6:CommsProtocol_Init	2
+../Core/Src/comms_protocol.c:66:6:CommsProtocol_RegisterPacketHandler	1
+../Core/Src/comms_protocol.c:74:6:CommsProtocol_Send	5
+../Core/Src/comms_protocol.c:102:6:CommsProtocol_Process	16

@@ -1,1 +1,2 @@
-../Core/Src/config.c:29:6:flags_init	1
+../Core/Src/config.c:53:6:flags_init	1
+../Core/Src/config.c:123:24:Config_GetTagTable	2

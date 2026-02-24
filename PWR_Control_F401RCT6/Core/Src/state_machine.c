@@ -1,23 +1,12 @@
+// #include <comms_legacy.h>
 #include "state_machine.h"
 #include "config.h"
-#include "comms.h"
 #include "injection_and_flow.h"
 #include "main.h"
 #include "tim.h"
 #include "mks42d.h"
 
-/* Top-level states now explicitly defined in header (please ensure header updated accordingly) */
-/* If your state_machine.h didn't contain these enums, add them:
-   typedef enum {
-     SYS_STARTUP_SEQUENCE = 0,
-     SYS_PAIRING,
-     SYS_RUNNING_PI,
-     SYS_STANDALONE_OPERATION,
-     SYS_ERROR_SHUTDOWN
-   } SysState_t;
-*/
-
-static volatile SysState_t cur_state = SYS_STARTUP_SEQUENCE;
+volatile SysState_t cur_state = SYS_STARTUP_SEQUENCE;
 
 /* handshake timeout: configured default here (ms) but could be added to secondary config later */
 volatile uint32_t handshake_timeout_ms = DEFAULT_HANDSHAKE_TIMEOUT;
@@ -131,47 +120,105 @@ void StateMachine_TriggerFatal(void) {
     // user must ensure hardware outputs are disabled by calling appropriate APIs
 }
 
-/* call once per main loop iteration (or faster) */
+void StateMachine_EnterDebug(void)
+{
+    /* only allowed to enter debug from SYS_RUNNING_PI */
+    if (cur_state == SYS_RUNNING_PI) {
+        cur_state = SYS_DEBUG;
+    }
+}
+
+void StateMachine_ExitDebug(void)
+{
+    /* only allowed to exit debug back to running PI */
+    if (cur_state == SYS_DEBUG) {
+        /* Clear all debug enable flags so we don't immediately re-enter SYS_DEBUG */
+        pwm_debug_enabled = 0;
+        echo_debug_enabled = 0;
+        manual_pwm_enabled = 0;
+        manual_pwm_duty = 0;
+        solenoid_test_enabled = 0;
+
+        /* restore safe PWM compare to zero to be defensive */
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+
+        cur_state = SYS_RUNNING_PI;
+    }
+}
+
+/* in StateMachine_ProcessTick add a case for SYS_DEBUG and modify SYS_RUNNING_PI check to optionally move into SYS_DEBUG */
 void StateMachine_ProcessTick(void) {
     uint32_t now = SYSTEM_TICK;
 
     switch (cur_state) {
         case SYS_STARTUP_SEQUENCE:
-
             RunStartupSequence();
             break;
 
         case SYS_PAIRING:
-            /* handshake timeout starts when we entered pairing */
             if (pairing_enter_tick == 0) pairing_enter_tick = now;
             if ((now - pairing_enter_tick) >= MS_TO_TICKS(handshake_timeout_ms)) {
-                /* timed out without valid handshake -> go to standalone operation */
                 cur_state = SYS_STANDALONE_OPERATION;
             }
             break;
 
         case SYS_RUNNING_PI:
+            /* If any debug mode has been enabled at runtime, move to SYS_DEBUG.
+               This enforces "only enter SYS_DEBUG from SYS_RUNNING_PI". */
+            if (pwm_debug_enabled || usb_serial_debug_enabled || echo_debug_enabled || manual_pwm_enabled) {
+                StateMachine_EnterDebug();
+                break;
+            }
+
             /* Normal operation controlled by Pi. Flow schedule processed elsewhere. */
-        	FlowMeter_UpdateInstantaneous();
-			FlowMeter_UpdateTotal();
-			if (!(PWM_DEBUG)) {
-				update_pump_state();
-				Update_Solenoid_State();
-			}
-			// this will only run if we set the debug flag upon compile. Expect broken behaviour if you keep both
-			// update_pump_state(); and GenerateSawWaveDebug(); running at the same time.
-			if (PWM_DEBUG) {
-				GenerateSawWaveDebug();
-			}
+            FlowMeter_UpdateInstantaneous();
+            FlowMeter_UpdateTotal();
+
+            /* update pump state using runtime flags (lookup table and PI) */
+            if (!pwm_debug_enabled && !manual_pwm_enabled) {
+                update_pump_state();
+                Update_Solenoid_State();
+            } else {
+                /* if pwm debug or manual pwm was set but we didn't transition (shouldn't happen),
+                   ensure safe behavior: do not run PI */
+            }
+            break;
+
+        case SYS_DEBUG:
+            /* In debug state: apply debug behaviors only. Exit only via MSG_EXIT_SYS_DEBUG.
+               Manual PWM mode takes priority; otherwise if pwm_debug_enabled produce saw-wave.
+               Echo and solenoid test run ONLY while in SYS_DEBUG.
+            */
+            if (manual_pwm_enabled) {
+                /* ensure manual PWM enforced each tick */
+                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, manual_pwm_duty);
+            } else if (pwm_debug_enabled) {
+                GenerateSawWaveDebug();
+            }
+
+            /* Echo debug: non-blocking I/O handling */
+            if (echo_debug_enabled) {
+                extern void EchoDebug_Process(void);
+                EchoDebug_Process();
+            }
+
+            /* Solenoid test: non-blocking toggling behavior */
+            if (solenoid_test_enabled) {
+                /* implement a small helper to toggle solenoid pin at ~1s intervals using SYSTEM_TICK */
+                static uint32_t last_toggle_tick = 0;
+                uint32_t now = SYSTEM_TICK;
+                if (last_toggle_tick == 0) last_toggle_tick = now;
+                if ((now - last_toggle_tick) >= MS_TO_TICKS(1000)) { // toggle every ~1000 ms
+                    last_toggle_tick = now;
+                    HAL_GPIO_TogglePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN);
+                }
+            }
             break;
 
         case SYS_STANDALONE_OPERATION:
-            /* Run autonomous operation: hand off to flow schedule processing */
+            /* autonomous operation */
         	// nothing for now
-        	if (PWM_DEBUG) {
-				GenerateSawWaveDebug();
-			}
-            break;
+			break;
 
         case SYS_ERROR_SHUTDOWN:
             /* safe shutdown */

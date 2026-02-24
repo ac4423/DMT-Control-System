@@ -34,11 +34,9 @@
 #include "config.h"
 #include "injection_and_flow.h"
 #include "state_machine.h"
-#if ENABLE_USB_SERIAL_DEBUG
-#include "usb_debug.h"
-#endif
-#include "comms.h"
-#include "state_machine.h"
+// #include "usb_debug.h" // unused as of current -- check for anything useful in there...
+#include "comms_protocol.h"
+#include "comms_app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -161,52 +159,6 @@ int main(void)
 //	}
 //	*/
 
-	#if SOLENOID_TEST
-	while (1) {
-		HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, 1);
-		HAL_Delay(1000);
-		HAL_GPIO_WritePin(SOLENOID_GPIO_PORT, SOLENOID_GPIO_PIN, 0);
-		HAL_Delay(1000);
-	}
-	#endif
-
-
-	#if ENABLE_ECHO_DEBUG
-	uint8_t rxBuffer[128];
-	uint8_t txBuffer[128];
-
-	#define RECEIVE USART1
-	#define SEND USART1
-
-	while (1)
-	{
-		// --- Step 1: Check how many bytes are available ---
-		uint8_t available = UartHAL_RxAvailable(RECEIVE);
-		if (available == 0) {
-			// Nothing received, small delay
-			HAL_Delay(1);
-			continue;
-		}
-
-		if (available > sizeof(rxBuffer)) available = sizeof(rxBuffer);
-
-		// --- Step 2: Read all available bytes ---
-		for (uint8_t i = 0; i < available; i++)
-		{
-			rxBuffer[i] = UartHAL_Read(RECEIVE);
-		}
-
-		// --- Step 3: Echo them back ---
-		for (uint8_t i = 0; i < available; i++)
-		{
-			txBuffer[i] = rxBuffer[i];
-		}
-
-		// Send using reliable module function
-		UartHAL_Send(SEND, txBuffer, available);
-	}
-	#endif
-
 //	//*/
 
 //  
@@ -326,12 +278,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         }
         */
 
-#if ENABLE_USB_SERIAL_DEBUG
-        if (++usb_serial_timer >= serial_send_ticks_threshold) {
-            usb_serial_timer = 0;
-            usb_serial_flag = 1;
+        if (usb_serial_debug_enabled) {
+        	if (++usb_serial_timer >= serial_send_ticks_threshold) {
+        	            usb_serial_timer = 0;
+        	            usb_serial_flag = 1;
+        	        }
         }
-#endif
 
         if (++Pump_Control.pump_counter >= pump_ticks_threshold) {
             Pump_Control.pump_counter = 0;

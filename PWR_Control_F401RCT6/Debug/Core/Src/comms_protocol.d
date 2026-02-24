@@ -1,4 +1,5 @@
-Core/Src/comms.o: ../Core/Src/comms.c ../Core/Inc/comms.h \
+Core/Src/comms_protocol.o: ../Core/Src/comms_protocol.c \
+ ../Core/Inc/comms_protocol.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
  ../Core/Inc/stm32f4xx_hal_conf.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h \
@@ -27,10 +28,8 @@ Core/Src/comms.o: ../Core/Src/comms.c ../Core/Inc/comms.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- ../Core/Inc/uart_hal.h ../Core/Inc/config.h \
- ../Core/Inc/injection_and_flow.h ../Core/Inc/main.h ../Core/Inc/config.h \
- ../Core/Inc/state_machine.h ../Core/Inc/tim.h
-../Core/Inc/comms.h:
+ ../Core/Inc/uart_hal.h ../Core/Inc/tim.h ../Core/Inc/main.h
+../Core/Inc/comms_protocol.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h:
@@ -60,9 +59,5 @@ Core/Src/comms.o: ../Core/Src/comms.c ../Core/Inc/comms.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 ../Core/Inc/uart_hal.h:
-../Core/Inc/config.h:
-../Core/Inc/injection_and_flow.h:
-../Core/Inc/main.h:
-../Core/Inc/config.h:
-../Core/Inc/state_machine.h:
 ../Core/Inc/tim.h:
+../Core/Inc/main.h:

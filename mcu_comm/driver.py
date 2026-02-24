@@ -17,8 +17,31 @@ from typing import Callable, Dict, List, Optional
 
 from .protocol import PacketParser, build_frame, xor_crc, u16_le, u32_le, MSG_DESIRED_FLOW, MSG_DESIRED_FLOW_IMMEDIATE
 
-logger = logging.getLogger(__name__)
+# Add imports at top of file (if not already present)
+import struct
+# mcu_comm/driver.py (patch - imports)
+# add these imports (merge with existing imports)
+from .protocol import (
+    build_config_payload,
+    CONFIG_TAG_TELEMETRY_PERIOD_MS,
+    CONFIG_TAG_HEARTBEAT_PERIOD_MS,
+    CONFIG_TAG_PI_KP,
+    CONFIG_TAG_PI_KI,
+    CONFIG_TAG_ENABLE_PI_CONTROL,
+    MSG_CONFIG,
+    MSG_SET_PUMP_PWM,
+    MSG_EXIT_SYS_DEBUG,
+    CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
+    CONFIG_TAG_SERIAL_SEND_MS,
+    CONFIG_TAG_PWM_DEBUG,
+    CONFIG_TAG_ENABLE_ECHO_DEBUG,
+    CONFIG_TAG_FLOW_WINDOW_MS,
+    CONFIG_TAG_FLOW_PULSES_PER_LITRE,
+    CONFIG_TAG_ENABLE_LOOKUP_TABLE,
+    CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+)
 
+logger = logging.getLogger(__name__)
 
 class MCUComm:
     def __init__(self, port: str, baud: int = 115200, timeout: float = 0.01):
@@ -179,4 +202,52 @@ class MCUComm:
             else:
                 # avoid busy spin
                 time.sleep(0.001)
+
+    def send_config(self, fields: list) -> int:
+        """
+        Generic: send a MSG_CONFIG with TLV fields.
+
+        fields: list of (tag:int, value:bytes)
+        returns: sequence number used
+        """
+        payload = build_config_payload(fields)
+        return self.send_frame(MSG_CONFIG, payload)
+
+    # Convenience wrappers for common types --------------------------------
+    def send_config_u16(self, tag: int, value: int) -> int:
+        """Send a 2-byte little-endian unsigned int TLV field."""
+        if not (0 <= value <= 0xFFFF):
+            raise ValueError("u16 out of range")
+        val = bytes([value & 0xFF, (value >> 8) & 0xFF])
+        return self.send_config([(tag, val)])
+
+    def send_config_u8(self, tag: int, value: int) -> int:
+        """Send a 1-byte unsigned TLV field."""
+        if not (0 <= value <= 0xFF):
+            raise ValueError("u8 out of range")
+        val = bytes([value & 0xFF])
+        return self.send_config([(tag, val)])
+
+    def send_config_f32(self, tag: int, value: float) -> int:
+        """Send a 4-byte little-endian IEEE754 float TLV field."""
+        val = struct.pack("<f", float(value))
+        return self.send_config([(tag, val)])
+
+    def send_set_pump_pwm(self, duty: int) -> int:
+        """
+        Send MSG_SET_PUMP_PWM to set manual pump PWM duty and put MCU into SYS_DEBUG.
+        duty: int 0..99 (MCU accepts 0..PUMP_DUTY_MAX==99); we'll validate here.
+        returns: sequence number used
+        """
+        if not (0 <= duty <= 99):
+            raise ValueError("duty must be 0..99")
+        payload = bytes([duty & 0xFF])
+        return self.send_frame(MSG_SET_PUMP_PWM, payload)
+
+    def send_exit_sys_debug(self) -> int:
+        """
+        Send MSG_EXIT_SYS_DEBUG (no payload). This instructs MCU to return to SYS_RUNNING_PI
+        if currently in SYS_DEBUG.
+        """
+        return self.send_frame(MSG_EXIT_SYS_DEBUG, b"")
 

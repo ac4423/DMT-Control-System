@@ -1,11 +1,12 @@
-#include "comms.h"
+#include <comms_legacy.h>
+#include <comms_legacy.h>
 #include "uart_hal.h"
 #include "config.h"
 #include "injection_and_flow.h"
 #include "state_machine.h"
-#include "comms.h"
 #include <string.h>
 #include <tim.h>
+#include <stdbool.h>
 
 /* Message type definitions (choose values that do not conflict with existing ones) */
 #define MSG_ACK                 0x01
@@ -17,7 +18,10 @@
 #define MSG_HEARTBEAT           0x13
 #define MSG_DESIRED_FLOW        0x20
 #define MSG_DESIRED_FLOW_IMMEDIATE 0x21
-// #define MSG_TERMS_UPDATE        0x30  /* legacy */
+
+/* New debug function codes */
+#define MSG_SET_PUMP_PWM        0x30  /* payload: [duty:1byte] -> forces SYS_DEBUG if accepted */
+#define MSG_EXIT_SYS_DEBUG      0x31  /* no payload; when in SYS_DEBUG returns to SYS_RUNNING_PI */
 
 /* Configurable behavior (default values in config.c can be overwritten by handshake) */
 /*
@@ -44,6 +48,179 @@ static uint8_t xor_crc(const uint8_t *data, uint8_t len) {
     uint8_t c = 0;
     for (uint8_t i = 0; i < len; ++i) c ^= data[i];
     return c;
+}
+
+/* Config callback registration */
+static Comms_OnConfig_t config_cb = NULL;
+void Comms_RegisterConfigCb(Comms_OnConfig_t cb) {
+    config_cb = cb;
+}
+
+/*
+ * Comms_ApplyConfigTLV
+ *   Parse TLV payload buffer and apply recognized tags.
+ *   Returns true if at least one tag was applied successfully.
+ *
+ *   This function preserves the same tag semantics you had:
+ *     0x01: telemetry_period_ms (2 bytes LE)
+ *     0x02: heartbeat_period_ms (2 bytes LE)
+ *     0x03: PI_Kp (4 bytes float LE)
+ *     0x04: PI_Ki (4 bytes float LE)
+ *     0x05: ENABLE_PI_CONTROL (1 byte)
+ *
+ *   Unknown tags are ignored. Malformed tag (len overflow) stops parsing early.
+ */
+/* Comms_ApplyConfigTLV
+ *   Parse TLV payload buffer and apply recognized tags.
+ *   Returns true if at least one tag was applied successfully.
+ */
+bool Comms_ApplyConfigTLV(const uint8_t *payload, uint8_t len) {
+    if (!payload || len == 0) return false;
+
+    uint8_t idx = 0;
+    bool any_applied = false;
+
+    while (idx + 2 <= len) {
+        uint8_t tag = payload[idx++];
+        uint8_t tlen = payload[idx++];
+
+        if ((uint16_t)idx + (uint16_t)tlen > (uint16_t)len) {
+            /* malformed - stop */
+            break;
+        }
+
+        switch (tag) {
+            case CONFIG_TAG_TELEMETRY_PERIOD_MS:
+                if (tlen == 2) {
+                    uint16_t tp = (uint16_t)payload[idx] | ((uint16_t)payload[idx+1] << 8);
+                    telemetry_period_ms = tp;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_HEARTBEAT_PERIOD_MS:
+                if (tlen == 2) {
+                    uint16_t hb = (uint16_t)payload[idx] | ((uint16_t)payload[idx+1] << 8);
+                    heartbeat_period_ms = hb;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_PI_KP:
+                if (tlen == 4) {
+                    float kp;
+                    memcpy(&kp, &payload[idx], 4);
+                    PI_Kp = kp;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_PI_KI:
+                if (tlen == 4) {
+                    float ki;
+                    memcpy(&ki, &payload[idx], 4);
+                    PI_Ki = ki;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_ENABLE_PI_CONTROL:
+                if (tlen == 1) {
+                    ENABLE_PI_CONTROL = payload[idx] ? 1 : 0;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            /* --- New debug/runtime tags --- */
+            case CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG:
+                if (tlen == 1) {
+                    usb_serial_debug_enabled = payload[idx] ? 1 : 0;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_SERIAL_SEND_MS:
+                if (tlen == 2) {
+                    uint16_t v = (uint16_t)payload[idx] | ((uint16_t)payload[idx+1] << 8);
+                    serial_send_ms = v;
+                    serial_send_ticks_threshold = MS_TO_TICKS(serial_send_ms);
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_PWM_DEBUG:
+                if (tlen == 1) {
+                    pwm_debug_enabled = payload[idx] ? 1 : 0;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_ENABLE_ECHO_DEBUG:
+                if (tlen == 1) {
+                    echo_debug_enabled = payload[idx] ? 1 : 0;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            /* --- Flow/pump params --- */
+            case CONFIG_TAG_FLOW_WINDOW_MS:
+                if (tlen == 2) {
+                    uint16_t v = (uint16_t)payload[idx] | ((uint16_t)payload[idx+1] << 8);
+                    flow_window_ms = v;
+                    flowmeter_window_ticks = MS_TO_TICKS(flow_window_ms);
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_FLOW_PULSES_PER_LITRE:
+                if (tlen == 4) {
+                    uint32_t v = (uint32_t)payload[idx] |
+                                 ((uint32_t)payload[idx+1] << 8) |
+                                 ((uint32_t)payload[idx+2] << 16) |
+                                 ((uint32_t)payload[idx+3] << 24);
+                    flow_pulses_per_litre = v;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_ENABLE_LOOKUP_TABLE:
+                if (tlen == 1) {
+                    enable_lookup_table = payload[idx] ? 1 : 0;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            case CONFIG_TAG_PUMP_SAMPLE_TIME_MS:
+                if (tlen == 2) {
+                    uint16_t v = (uint16_t)payload[idx] | ((uint16_t)payload[idx+1] << 8);
+                    pump_sample_time_ms = v;
+                    pump_ticks_threshold = MS_TO_TICKS(pump_sample_time_ms);
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
+            default:
+                /* unknown tag -> ignore */
+                break;
+        }
+
+        idx += tlen;
+    }
+
+    return any_applied;
 }
 
 /* --- frame builder --- */
@@ -287,92 +464,25 @@ void Comms_Process(void)
 							break;
 						}
 
-                        case MSG_CONFIG:
-                            /* Secondary config: extensible TLV style fields.
-                               We'll implement a few common ones:
+                    case MSG_CONFIG:
+						{
+							SysState_t st = StateMachine_GetState();
 
-                               tag 0x01: telemetry_period_ms (2 bytes LE)
-                               tag 0x02: heartbeat_period_ms (2 bytes LE)
-                               tag 0x03: PI_Kp (4 bytes float LE)
-                               tag 0x04: PI_Ki (4 bytes float LE)
-                               tag 0x05: ENABLE_PI_CONTROL (1 byte)
+							if (st != SYS_PAIRING && st != SYS_RUNNING_PI)
+							{
+								if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+								break;
+							}
 
-                               Others: ignored
+							bool applied = Comms_ApplyConfigTLV(payload_buf, tmp_len);
 
-                               Format:
-                               [tag][len][value bytes]...[tag][len][value]... */
-                        {
-                        	SysState_t st = StateMachine_GetState();
-
-                        	if (st != SYS_PAIRING && st != SYS_RUNNING_PI)
-                        	{
-                        	    if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
-                        	    break;
-                        	}
-
-                            uint8_t idx = 0;
-
-                            while (idx + 2 <= tmp_len)
-                            {
-                                uint8_t tag = payload_buf[idx++];
-                                uint8_t len = payload_buf[idx++];
-
-                                if (idx + len > tmp_len) break; // malformed -> stop
-
-                                switch (tag)
-                                {
-                                    case 0x01:
-                                        if (len == 2)
-                                        {
-                                            uint16_t tp = payload_buf[idx] | ((uint16_t)payload_buf[idx+1] << 8);
-                                            telemetry_period_ms = tp;
-                                        }
-                                        break;
-
-                                    case 0x02:
-                                        if (len == 2)
-                                        {
-                                            uint16_t hb = payload_buf[idx] | ((uint16_t)payload_buf[idx+1] << 8);
-                                            heartbeat_period_ms = hb;
-                                        }
-                                        break;
-
-                                    case 0x03:
-                                        if (len == 4)
-                                        {
-                                            float kp;
-                                            memcpy(&kp, &payload_buf[idx], 4);
-                                            PI_Kp = kp;
-                                        }
-                                        break;
-
-                                    case 0x04:
-                                        if (len == 4)
-                                        {
-                                            float ki;
-                                            memcpy(&ki, &payload_buf[idx], 4);
-                                            PI_Ki = ki;
-                                        }
-                                        break;
-
-                                    case 0x05:
-                                        if (len == 1)
-                                        {
-                                            ENABLE_PI_CONTROL = payload_buf[idx] ? 1 : 0;
-                                        }
-                                        break;
-
-                                    default:
-                                        /* unknown tag -> ignore */
-                                        break;
-                                }
-
-                                idx += len;
-                            }
-
-                            if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
-                        }
-                        break;
+							if (applied) {
+								if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
+							} else {
+								if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+							}
+						}
+						break;
 
                         /* case MSG_TERMS_UPDATE: // legacy single-packet update (kept for backward compatibility)
                             if (tmp_len >= 3)
@@ -431,9 +541,50 @@ void Comms_Process(void)
                             }
                             break;
 
-                        default:
-                            if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+                        case MSG_SET_PUMP_PWM:
+                            /* payload: [duty:1byte] */
+                            if (tmp_len >= 1) {
+                                SysState_t st = StateMachine_GetState();
+                                if (st != SYS_RUNNING_PI) {
+                                    if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+                                    break;
+                                }
+
+                                uint8_t duty = payload_buf[0];
+                                if (duty > PUMP_DUTY_MAX) duty = PUMP_DUTY_MAX;
+
+                                /* Apply immediate manual PWM duty and mark manual mode */
+                                manual_pwm_duty = duty;
+                                manual_pwm_enabled = 1;
+
+                                /* set timer compare immediately; injection_and_flow uses same timer */
+                                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, manual_pwm_duty);
+
+                                /* Enter SYS_DEBUG (state machine enforces allowed transitions) */
+                                StateMachine_EnterDebug();
+
+                                if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
+                            } else {
+                                if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+                            }
                             break;
+
+                        case MSG_EXIT_SYS_DEBUG:
+                            /* no payload, only valid in SYS_DEBUG */
+                            {
+                                SysState_t st = StateMachine_GetState();
+                                if (st == SYS_DEBUG) {
+                                    StateMachine_ExitDebug();
+                                    if (send_ack_and_nack_packets) Comms_SendAck(tmp_seq);
+                                } else {
+                                    if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+                                }
+                            }
+                            break;
+
+                        default:
+							if (send_ack_and_nack_packets) Comms_SendNack(tmp_seq);
+							break;
                     } // switch tmp_type
                 }
                 else
@@ -465,7 +616,7 @@ void Comms_Tick(void) {
 
     /* Heartbeat must be sent even before handshake to indicate device alive and current state */
     uint32_t hb_period_ticks = MS_TO_TICKS(heartbeat_period_ms);
-    if (hb_period_ticks == 0) hb_period_ticks = MS_TO_TICKS(DEFAULT_HEARTBEAT_PERIOD_MS);
+    if (hb_period_ticks == 0) hb_period_ticks = MS_TO_TICKS(DEFAULT_HEARTBEAT_PERIOD_MS); // this looks like it is for safety...
 
     if ((now - last_heartbeat_tick) >= hb_period_ticks) {
         last_heartbeat_tick = now;

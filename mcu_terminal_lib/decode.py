@@ -16,10 +16,10 @@ STATE_NAMES = {
     0: "SYS_STARTUP_SEQUENCE",
     1: "SYS_PAIRING",
     2: "SYS_RUNNING_PI",
-    3: "SYS_STANDALONE_OPERATION",
-    4: "SYS_ERROR_SHUTDOWN",
+    3: "SYS_DEBUG",
+    4: "SYS_STANDALONE_OPERATION",
+    5: "SYS_ERROR_SHUTDOWN",
 }
-
 
 def format_hex(b: bytes) -> str:
     return " ".join(f"{x:02X}" for x in b)

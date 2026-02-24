@@ -7,6 +7,23 @@ from typing import TYPE_CHECKING
 
 from mcu_terminal_lib.decode import format_hex
 
+from mcu_comm.protocol import (
+    MSG_CONFIG,
+    CONFIG_TAG_TELEMETRY_PERIOD_MS,
+    CONFIG_TAG_HEARTBEAT_PERIOD_MS,
+    CONFIG_TAG_PI_KP,
+    CONFIG_TAG_PI_KI,
+    CONFIG_TAG_ENABLE_PI_CONTROL,
+    CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
+    CONFIG_TAG_SERIAL_SEND_MS,
+    CONFIG_TAG_PWM_DEBUG,
+    CONFIG_TAG_ENABLE_ECHO_DEBUG,
+    CONFIG_TAG_FLOW_WINDOW_MS,
+    CONFIG_TAG_FLOW_PULSES_PER_LITRE,
+    CONFIG_TAG_ENABLE_LOOKUP_TABLE,
+    CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+)
+
 if TYPE_CHECKING:
     from mcu_comm.driver import MCUComm
     import threading
@@ -237,6 +254,34 @@ class CommandProcessor:
                     self.ui.print_cmd(f"[CMD ERR] send desired flow immediate failed: {e}")
                 return
 
+            # manual PWM set -> put MCU in SYS_DEBUG
+            if cmd in ("pwm", "set-pwm", "set_pwm"):
+                if len(tokens) < 2:
+                    self.ui.print_cmd("[CMD] usage: pwm <duty 0..99>")
+                    return
+                try:
+                    duty = int(tokens[1], 0)
+                except ValueError:
+                    self.ui.print_cmd("[CMD ERR] invalid duty value")
+                    return
+                try:
+                    seq = self.comm.send_set_pump_pwm(duty)
+                    self.ui.print_cmd(f"[TX] MSG_SET_PUMP_PWM SEQ={seq} DUTY={duty}")
+                except Exception as e:
+                    logger.exception("failed send set pump pwm")
+                    self.ui.print_cmd(f"[CMD ERR] send set pump pwm failed: {e}")
+                return
+
+            # exit debug state on MCU
+            if cmd in ("exit-debug", "exitdebug"):
+                try:
+                    seq = self.comm.send_exit_sys_debug()
+                    self.ui.print_cmd(f"[TX] MSG_EXIT_SYS_DEBUG SEQ={seq}")
+                except Exception as e:
+                    logger.exception("failed send exit debug")
+                    self.ui.print_cmd(f"[CMD ERR] send exit debug failed: {e}")
+                return
+
             # Pause (freeze) / resume (unfreeze) incoming packets display.
             if cmd in ("pause"):
                 # optional arg: on|off|1|0
@@ -268,6 +313,148 @@ class CommandProcessor:
                     self.ui.print_cmd(f"[CMD ERR] resume failed: {e}")
                 return
 
+            # send a config TLV (single field)
+            if cmd == "config":
+                # usage:
+                #   config telemetry 200
+                #   config heartbeat 500
+                #   config kp 0.002
+                #   config ki 0.001
+                #   config enable_pi 1
+                #   config raw <hexpayload>   -> send arbitrary TLV payload bytes as-is
+                if len(tokens) < 2:
+                    self.ui.print_cmd("[CMD] usage: config <tag> <value> | config raw <hexpayload>")
+                    return
+
+                tag_token = tokens[1].lower()
+
+                # raw TLV payload mode
+                if tag_token in ("raw", "tlv"):
+                    if len(tokens) < 3:
+                        self.ui.print_cmd("[CMD] usage: config raw <hexpayload>")
+                        return
+                    hexpayload = "".join(tokens[2:]).replace(" ", "")
+                    try:
+                        payload = bytes.fromhex(hexpayload)
+                    except ValueError:
+                        self.ui.print_cmd("[CMD ERR] invalid hex payload")
+                        return
+                    try:
+                        # use generic send_frame to send raw payload as MSG_CONFIG
+                        seq = self.comm.send_frame(MSG_CONFIG, payload)
+                        self.ui.print_cmd(f"[TX] MSG_CONFIG RAW SEQ={seq} PAYLOAD={hexpayload}")
+                    except Exception as e:
+                        logger.exception("failed send config raw")
+                        self.ui.print_cmd(f"[CMD ERR] send config raw failed: {e}")
+                    return
+
+                # Map friendly tag names to numeric tag constants
+               # Map friendly tag names to numeric tag constants
+                name_to_tag = {
+                    "telemetry": CONFIG_TAG_TELEMETRY_PERIOD_MS,
+                    "hb": CONFIG_TAG_HEARTBEAT_PERIOD_MS,
+                    "heartbeat": CONFIG_TAG_HEARTBEAT_PERIOD_MS,
+                    "kp": CONFIG_TAG_PI_KP,
+                    "ki": CONFIG_TAG_PI_KI,
+                    "enable_pi": CONFIG_TAG_ENABLE_PI_CONTROL,
+                    "enablepi": CONFIG_TAG_ENABLE_PI_CONTROL,
+                    "enable": CONFIG_TAG_ENABLE_PI_CONTROL,
+
+                    # new debug/runtime tags
+                    "enable_usb_serial_debug": CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
+                    "usb_debug": CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
+                    "serial_send_ms": CONFIG_TAG_SERIAL_SEND_MS,
+                    "pwm_debug": CONFIG_TAG_PWM_DEBUG,
+                    "enable_echo_debug": CONFIG_TAG_ENABLE_ECHO_DEBUG,
+
+                    # new flow/pump runtime params
+                    "flow_window_ms": CONFIG_TAG_FLOW_WINDOW_MS,
+                    "flow_window": CONFIG_TAG_FLOW_WINDOW_MS,
+                    "flow_pulses_per_litre": CONFIG_TAG_FLOW_PULSES_PER_LITRE,
+                    "pulses_per_litre": CONFIG_TAG_FLOW_PULSES_PER_LITRE,
+                    "enable_lookup_table": CONFIG_TAG_ENABLE_LOOKUP_TABLE,
+
+                    "lookup_table": CONFIG_TAG_ENABLE_LOOKUP_TABLE,
+                    "pump_sample_time_ms": CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+                    "pump_sample_time": CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+                }
+                # allow hex or decimal numeric tag token e.g. 0x01 or 1
+                if tag_token in name_to_tag:
+                    tag = name_to_tag[tag_token]
+                else:
+                    # try numeric parse
+                    try:
+                        if tag_token.startswith("0x") or tag_token.startswith("0X"):
+                            tag = int(tag_token, 16)
+                        else:
+                            tag = int(tag_token, 0)
+                    except ValueError:
+                        self.ui.print_cmd(f"[CMD ERR] unknown tag '{tag_token}'. See README TLV table.")
+                        return
+
+                # Now parse value according to tag type expected
+                try:
+                    # u16 tags
+                    if tag in (CONFIG_TAG_TELEMETRY_PERIOD_MS, CONFIG_TAG_HEARTBEAT_PERIOD_MS,
+                               CONFIG_TAG_SERIAL_SEND_MS, CONFIG_TAG_FLOW_WINDOW_MS, CONFIG_TAG_PUMP_SAMPLE_TIME_MS):
+                        if len(tokens) < 3:
+                            self.ui.print_cmd("[CMD] usage: config <tag> <value>")
+                            return
+                        val = int(tokens[2], 0)
+                        seq = self.comm.send_config_u16(tag, val)
+                        self.ui.print_cmd(f"[TX] MSG_CONFIG SEQ={seq} TAG=0x{tag:02X} VAL={val}")
+                        return
+
+                    # float tags (kp/ki)
+                    if tag in (CONFIG_TAG_PI_KP, CONFIG_TAG_PI_KI):
+                        if len(tokens) < 3:
+                            self.ui.print_cmd("[CMD] usage: config <kp|ki> <float>")
+                            return
+                        val = float(tokens[2])
+                        seq = self.comm.send_config_f32(tag, val)
+                        self.ui.print_cmd(f"[TX] MSG_CONFIG SEQ={seq} TAG=0x{tag:02X} VAL={val}")
+                        return
+
+                    # u8 tags (single byte flags)
+                    if tag in (CONFIG_TAG_ENABLE_PI_CONTROL,
+                               CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
+                               CONFIG_TAG_PWM_DEBUG,
+                               CONFIG_TAG_ENABLE_ECHO_DEBUG,
+                               CONFIG_TAG_ENABLE_LOOKUP_TABLE):
+                        if len(tokens) < 3:
+                            self.ui.print_cmd("[CMD] usage: config <tag> <0|1>")
+                            return
+                        v = tokens[2].lower()
+                        val = 1 if v not in ("0", "false", "off", "no") else 0
+                        seq = self.comm.send_config_u8(tag, val)
+                        self.ui.print_cmd(f"[TX] MSG_CONFIG SEQ={seq} TAG=0x{tag:02X} VAL={val}")
+                        return
+
+                    # u32 tag for pulses_per_litre
+                    if tag == CONFIG_TAG_FLOW_PULSES_PER_LITRE:
+                        if len(tokens) < 3:
+                            self.ui.print_cmd("[CMD] usage: config flow_pulses_per_litre <value>")
+                            return
+                        val = int(tokens[2], 0)
+                        # build raw 4-byte little endian
+                        val_bytes = bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF, (val >> 24) & 0xFF])
+                        seq = self.comm.send_config([(tag, val_bytes)])
+                        self.ui.print_cmd(f"[TX] MSG_CONFIG SEQ={seq} TAG=0x{tag:02X} VAL={val}")
+                        return
+
+                    # fallback: allow sending a hex value for unknown tags
+                    if len(tokens) < 3:
+                        self.ui.print_cmd("[CMD] usage: config <tag> <hexvalue>")
+                        return
+                    hexpart = "".join(tokens[2:]).replace(" ", "")
+                    value_bytes = bytes.fromhex(hexpart)
+                    seq = self.comm.send_config([(tag, value_bytes)])
+                    self.ui.print_cmd(f"[TX] MSG_CONFIG SEQ={seq} TAG=0x{tag:02X} RAW={hexpart}")
+                except Exception as e:
+                    logger.exception("failed send config")
+                    self.ui.print_cmd(f"[CMD ERR] send config failed: {e}")
+                return
+
             self.ui.print_cmd(f"[CMD ERR] unknown command: {cmd}. Type 'help' for commands.")
 
         except Exception:
@@ -278,6 +465,12 @@ class CommandProcessor:
         lines = [
             "Commands:",
             "  h, handshake [--hb N] [--tel N] [--send-ack 0|1] [--extra HEX]  Send handshake (overrides defaults)",
+            "  config <tag> <value>      Send a config TLV field to the MCU (see README TLV table)",
+            "    tags: telemetry, hb/heartbeat, kp, ki, enable_pi",
+            "    new tags: enable_usb_serial_debug, serial_send_ms, pwm_debug, enable_echo_debug,",
+            "              flow_window_ms, flow_pulses_per_litre, enable_lookup_table, pump_sample_time_ms",
+            "  pwm <0..99>               Set pump PWM duty immediately (enters SYS_DEBUG on MCU)",
+            "  exit-debug                Exit SYS_DEBUG on MCU and return to SYS_RUNNING_PI",
             "  1, emu1                 Send emulated Stepper GoHome Ack packet (dev)",
             "  2, emu2                 Send emulated Stepper SetZero Ack packet (dev)",
             "  flow <mL/min>, f         Send scheduled desired flow (queued)",
