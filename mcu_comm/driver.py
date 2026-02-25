@@ -16,6 +16,7 @@ import logging
 from typing import Callable, Dict, List, Optional
 
 from .protocol import PacketParser, build_frame, xor_crc, u16_le, u32_le, MSG_DESIRED_FLOW, MSG_DESIRED_FLOW_IMMEDIATE
+from .protocol import CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, MSG_FLOWMETER_PULSE_DEBUG
 
 # Add imports at top of file (if not already present)
 import struct
@@ -250,4 +251,14 @@ class MCUComm:
         if currently in SYS_DEBUG.
         """
         return self.send_frame(MSG_EXIT_SYS_DEBUG, b"")
+
+    # ---- convenience config helpers ----
+    def send_config_bool(self, tag: int, enabled: bool) -> int:
+        """Send a 1-byte TLV boolean (0/1)."""
+        return self.send_config_u8(tag, 1 if enabled else 0)
+
+    def send_config_flowmeter_pulse_send_debug(self, enabled: bool) -> int:
+        """Set CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG on the MCU (0/1)."""
+        from mcu_comm.protocol import CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG
+        return self.send_config_bool(CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, enabled)
 

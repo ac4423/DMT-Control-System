@@ -136,7 +136,7 @@ void StateMachine_ExitDebug(void)
         pwm_debug_enabled = 0;
         echo_debug_enabled = 0;
         manual_pwm_enabled = 0;
-        manual_pwm_duty = 0;
+        // manual_pwm_duty = 0;
         solenoid_test_enabled = 0;
 
         /* restore safe PWM compare to zero to be defensive */
@@ -177,11 +177,12 @@ void StateMachine_ProcessTick(void) {
             /* update pump state using runtime flags (lookup table and PI) */
             if (!pwm_debug_enabled && !manual_pwm_enabled) {
                 update_pump_state();
-                Update_Solenoid_State();
+
             } else {
                 /* if pwm debug or manual pwm was set but we didn't transition (shouldn't happen),
                    ensure safe behavior: do not run PI */
             }
+            Update_Solenoid_State(); // this needs be active always -- coupled with the update_pump_state() function;
             break;
 
         case SYS_DEBUG:
@@ -189,9 +190,12 @@ void StateMachine_ProcessTick(void) {
                Manual PWM mode takes priority; otherwise if pwm_debug_enabled produce saw-wave.
                Echo and solenoid test run ONLY while in SYS_DEBUG.
             */
+        	Update_Solenoid_State();
+        	FlowMeter_UpdateInstantaneous();
+			FlowMeter_UpdateTotal();
             if (manual_pwm_enabled) {
                 /* ensure manual PWM enforced each tick */
-                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, manual_pwm_duty);
+                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump);
             } else if (pwm_debug_enabled) {
                 GenerateSawWaveDebug();
             }

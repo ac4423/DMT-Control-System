@@ -27,6 +27,8 @@
 #define MSG_HEARTBEAT           0x13
 #define MSG_DESIRED_FLOW        0x20
 #define MSG_DESIRED_FLOW_IMMEDIATE 0x21
+#define MSG_DEBUG_FLOW_PULSE_COUNT 0x30
+#define MSG_FLOWMETER_PULSE_DEBUG 0x32  /* new message: [ts:u32][state:u8][pulse_total:u32] */
 
 /* New debug function codes */
 #define MSG_SET_PUMP_PWM        0x30  /* payload: [duty:1byte] -> forces SYS_DEBUG if accepted */
@@ -201,6 +203,14 @@ bool Comms_ApplyConfigTLV(const uint8_t *payload, uint8_t len) {
                 }
                 break;
 
+            case CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG:
+                if (tlen == 1) {
+                    flowmeter_pulse_send_debug_enabled = payload[idx] ? 1 : 0;
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
+
             default:
                 /* unknown tag -> ignore */
                 break;
@@ -319,7 +329,7 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
         {
             SysState_t st = StateMachine_GetState();
 
-            if (st != SYS_PAIRING && st != SYS_RUNNING_PI)
+            if (st != SYS_PAIRING && st != SYS_RUNNING_PI && st != SYS_DEBUG)
             {
                 if (send_ack_and_nack_packets) Comms_SendNack(seq);
                 break;
@@ -390,11 +400,11 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
                 if (duty > PUMP_DUTY_MAX) duty = PUMP_DUTY_MAX;
 
                 /* Apply immediate manual PWM duty and mark manual mode */
-                manual_pwm_duty = duty;
+                Pump_Control.duty_pump = duty;
                 manual_pwm_enabled = 1;
 
                 /* set timer compare immediately; injection_and_flow uses same timer */
-                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, manual_pwm_duty);
+                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump);
 
                 /* If we were running, transition to SYS_DEBUG; if already in SYS_DEBUG, do nothing */
                 if (st == SYS_RUNNING_PI) {
@@ -463,9 +473,14 @@ void Comms_Tick(void) {
         Comms_SendHeartbeat();
     }
 
+    /* Drain any queued flow-pulse debug events (send from non-ISR context) */
+    if (flowmeter_pulse_send_debug_enabled && StateMachine_GetState() == SYS_DEBUG) {
+        Comms_DrainFlowPulseQueue();
+    }
+
     /* Only send telemetry once we've left startup/pairing */
     SysState_t st = StateMachine_GetState();
-    if (st != SYS_RUNNING_PI && st != SYS_STANDALONE_OPERATION) {
+    if (st != SYS_RUNNING_PI && st != SYS_STANDALONE_OPERATION && st != SYS_DEBUG) {
         return;   // no telemetry yet
     }
 
@@ -496,4 +511,65 @@ void EchoDebug_Process(void)
 
     /* send back what we got */
     UartHAL_Send(ECHO_SEND_USART, buf, available);
+}
+
+/* --- Flow pulse queue (ISR-safe handshake) --- */
+#define FLOW_PULSE_QUEUE_SIZE 16
+typedef struct {
+    uint32_t ts;
+    uint32_t pulse_total;
+} FlowPulseEvent_t;
+
+static volatile FlowPulseEvent_t flow_pulse_queue[FLOW_PULSE_QUEUE_SIZE];
+static volatile uint8_t flow_pulse_q_head = 0; /* next read index (non-ISR) */
+static volatile uint8_t flow_pulse_q_tail = 0; /* next write index (ISR) */
+static volatile uint8_t flow_pulse_q_count = 0; /* number of elements queued */
+
+/* ISR-safe enqueue: call from FlowMeter_PulseCallback() */
+void Comms_EnqueueFlowmeterPulse(uint32_t ts, uint32_t pulse_total)
+{
+    /* short critical section to protect queue indices */
+    __disable_irq();
+
+    if (flow_pulse_q_count < FLOW_PULSE_QUEUE_SIZE) {
+        flow_pulse_queue[flow_pulse_q_tail].ts = ts;
+        flow_pulse_queue[flow_pulse_q_tail].pulse_total = pulse_total;
+        flow_pulse_q_tail = (flow_pulse_q_tail + 1) % FLOW_PULSE_QUEUE_SIZE;
+        flow_pulse_q_count++;
+    } else {
+        /* queue full -> drop oldest or drop new one. Choose drop-new for simplicity. */
+        /* optional: maintain an overflow counter to report back via telemetry later */
+        /* e.g. flow_pulse_overflow_count++; */
+    }
+
+    __enable_irq();
+}
+
+void Comms_SendFlowmeterPulseDebug(uint32_t ts, uint32_t pulse_total)
+{
+    uint8_t payload[9];
+    write_u32_le(&payload[0], ts);
+    payload[4] = (uint8_t)StateMachine_GetState();
+    write_u32_le(&payload[5], pulse_total);
+    CommsProtocol_Send(MSG_FLOWMETER_PULSE_DEBUG, seq_counter++, payload, sizeof(payload));
+}
+
+/* Drain queue and send events (non-ISR) */
+static void Comms_DrainFlowPulseQueue(void)
+{
+    /* Drain until empty */
+    while (flow_pulse_q_count > 0) {
+        /* read head atomically (single-byte reads are atomic on Cortex-M) */
+        uint32_t ts = flow_pulse_queue[flow_pulse_q_head].ts;
+        uint32_t total = flow_pulse_queue[flow_pulse_q_head].pulse_total;
+
+        /* advance head in a short critical section */
+        __disable_irq();
+        flow_pulse_q_head = (flow_pulse_q_head + 1) % FLOW_PULSE_QUEUE_SIZE;
+        flow_pulse_q_count--;
+        __enable_irq();
+
+        /* Now send the packet (non-ISR) */
+        Comms_SendFlowmeterPulseDebug(ts, total);
+    }
 }

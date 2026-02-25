@@ -22,6 +22,9 @@ volatile uint16_t serial_send_ms = DEFAULT_SERIAL_SEND_MS;
 volatile uint8_t pwm_debug_enabled = DEFAULT_PWM_DEBUG;
 volatile uint8_t echo_debug_enabled = DEFAULT_ENABLE_ECHO_DEBUG;
 
+/* --- NEW runtime flag --- */
+volatile uint8_t flowmeter_pulse_send_debug_enabled = 0; /* default: disabled */
+
 /* runtime flow/pump params */
 volatile uint16_t flow_window_ms = DEFAULT_FLOW_WINDOW_MS;
 volatile uint32_t flow_pulses_per_litre = DEFAULT_FLOW_PULSES_PER_LITRE;
@@ -62,6 +65,9 @@ void flags_init(void) {
     serial_send_ms = DEFAULT_SERIAL_SEND_MS;
     pwm_debug_enabled = DEFAULT_PWM_DEBUG;
     echo_debug_enabled = DEFAULT_ENABLE_ECHO_DEBUG;
+
+    /* NEW: default flowmeter-pulse-send debug enable */
+    flowmeter_pulse_send_debug_enabled = 0;
 
     flow_window_ms = DEFAULT_FLOW_WINDOW_MS;
     flow_pulses_per_litre = DEFAULT_FLOW_PULSES_PER_LITRE;
@@ -115,7 +121,10 @@ static const ConfigTagInfo_t TLV_TagTable[] = {
     { CONFIG_TAG_FLOW_WINDOW_MS,          "flow_window_ms",         2, "uint16_t (ms)" },
     { CONFIG_TAG_FLOW_PULSES_PER_LITRE,   "flow_pulses_per_litre",  4, "uint32_t" },
     { CONFIG_TAG_ENABLE_LOOKUP_TABLE,     "enable_lookup_table",    1, "uint8_t (0/1)" },
-    { CONFIG_TAG_PUMP_SAMPLE_TIME_MS,     "pump_sample_time_ms",    2, "uint16_t (ms)" }
+    { CONFIG_TAG_PUMP_SAMPLE_TIME_MS,     "pump_sample_time_ms",    2, "uint16_t (ms)" },
+
+    { CONFIG_TAG_PUMP_SAMPLE_TIME_MS,     "pump_sample_time_ms",    2, "uint16_t (ms)" },
+    { CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, "flowmeter_pulse_send_debug_enabled", 1, "uint8_t (0/1)" } /* <-- new */
 };
 
 static const size_t TLV_TagTableCount = sizeof(TLV_TagTable) / sizeof(TLV_TagTable[0]);

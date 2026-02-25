@@ -22,6 +22,7 @@ from mcu_comm.protocol import (
     CONFIG_TAG_FLOW_PULSES_PER_LITRE,
     CONFIG_TAG_ENABLE_LOOKUP_TABLE,
     CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+    CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG,
 )
 
 if TYPE_CHECKING:
@@ -377,6 +378,12 @@ class CommandProcessor:
                     "lookup_table": CONFIG_TAG_ENABLE_LOOKUP_TABLE,
                     "pump_sample_time_ms": CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
                     "pump_sample_time": CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+
+		    # flow pulse debug (new)
+		    "flowpulse_debug": CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG,
+		    "flow_pulse_debug": CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG,
+		    "flowmeter_pulse_send_debug": CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG,
+		    "flowmeter_pulse_send_debug_enabled": CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG,
                 }
                 # allow hex or decimal numeric tag token e.g. 0x01 or 1
                 if tag_token in name_to_tag:
@@ -417,10 +424,11 @@ class CommandProcessor:
 
                     # u8 tags (single byte flags)
                     if tag in (CONFIG_TAG_ENABLE_PI_CONTROL,
-                               CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
-                               CONFIG_TAG_PWM_DEBUG,
-                               CONFIG_TAG_ENABLE_ECHO_DEBUG,
-                               CONFIG_TAG_ENABLE_LOOKUP_TABLE):
+		           CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG,
+		           CONFIG_TAG_PWM_DEBUG,
+		           CONFIG_TAG_ENABLE_ECHO_DEBUG,
+		           CONFIG_TAG_ENABLE_LOOKUP_TABLE,
+		           CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG):   # <-- ADD THIS
                         if len(tokens) < 3:
                             self.ui.print_cmd("[CMD] usage: config <tag> <0|1>")
                             return
@@ -468,7 +476,8 @@ class CommandProcessor:
             "  config <tag> <value>      Send a config TLV field to the MCU (see README TLV table)",
             "    tags: telemetry, hb/heartbeat, kp, ki, enable_pi",
             "    new tags: enable_usb_serial_debug, serial_send_ms, pwm_debug, enable_echo_debug,",
-            "              flow_window_ms, flow_pulses_per_litre, enable_lookup_table, pump_sample_time_ms",
+"              flow_window_ms, flow_pulses_per_litre, enable_lookup_table, pump_sample_time_ms,",
+"              flowpulse_debug",
             "  pwm <0..99>               Set pump PWM duty immediately (enters SYS_DEBUG on MCU)",
             "  exit-debug                Exit SYS_DEBUG on MCU and return to SYS_RUNNING_PI",
             "  1, emu1                 Send emulated Stepper GoHome Ack packet (dev)",

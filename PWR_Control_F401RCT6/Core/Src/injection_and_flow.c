@@ -9,6 +9,8 @@
 #include "usart.h"
 // #include "usb_device.h"
 #include "flow_lut.h"
+#include "comms_app.h" /* for Comms_EnqueueFlowmeterPulse() */
+#include "state_machine.h" /* if not already included */
 
 /* Global flow state instance */
 volatile FlowState_t Flow_State = {0};
@@ -118,17 +120,27 @@ void FlowMeter_PulseCallback(void)
     Flow_State.pulse_count_window++;
     Flow_State.pulse_count_total++;
 
-#if RECORD_PULSE_TIMESTAMPS
-    if (Flow_State.pulse_delta_index < LONG_TERM_PULSE_ARRAY_CAPACITY) {
-        uint32_t d = Flow_State.delta_accumulator;
-
-        if (d > PULSE_DELTA_SOFT_MAX)
-            Flow_State.pulse_deltas[Flow_State.pulse_delta_index++] = PULSE_OVERFLOW_MARKER;
-        else
-            Flow_State.pulse_deltas[Flow_State.pulse_delta_index++] = (uint16_t)d;
+    /* --- NEW: enqueue a debug-packet event if enabled and in SYS_DEBUG --- */
+    if (flowmeter_pulse_send_debug_enabled) {
+        SysState_t st = StateMachine_GetState();
+        if (st == SYS_DEBUG) {
+            /* capture current tick (we already have 'now' earlier) and total */
+            Comms_EnqueueFlowmeterPulse(now, Flow_State.pulse_count_total);
+        }
     }
-    Flow_State.delta_accumulator = 0;
-#endif
+
+    if (RECORD_PULSE_TIMESTAMPS) {
+    	if (Flow_State.pulse_delta_index < LONG_TERM_PULSE_ARRAY_CAPACITY) {
+    	        uint32_t d = Flow_State.delta_accumulator;
+
+    	        if (d > PULSE_DELTA_SOFT_MAX)
+    	            Flow_State.pulse_deltas[Flow_State.pulse_delta_index++] = PULSE_OVERFLOW_MARKER;
+    	        else
+    	            Flow_State.pulse_deltas[Flow_State.pulse_delta_index++] = (uint16_t)d;
+    	    }
+    	    Flow_State.delta_accumulator = 0;
+    }
+
 }
 
 /**

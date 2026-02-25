@@ -62,8 +62,8 @@
 
 
 /* parameters: */
-#define DEFAULT_FLOW_WINDOW_MS   100
-#define DEFAULT_FLOW_PULSES_PER_LITRE   5880U
+#define DEFAULT_FLOW_WINDOW_MS   500
+#define DEFAULT_FLOW_PULSES_PER_LITRE   600U // 5880U
 #define DEFAULT_PUMP_SAMPLE_TIME_MS 10
 
 #define RECORD_PULSE_TIMESTAMPS 1
@@ -86,8 +86,8 @@
 #define PUMP_DUTY_MAX     99U
 
 /* --- PI-control: defaults (can be overwritten by Pi) --- */
-#define DEFAULT_PI_Kp 0.002f
-#define DEFAULT_PI_Ki 0.001f
+#define DEFAULT_PI_Kp 0.05f
+#define DEFAULT_PI_Ki 0.05f
 
 #define FLOW_SCHEDULE_MIN_LOOKAHEAD  0 // keep this at zero for now.
 #define FLOW_DIFF_LUT_THRESHOLD_MLMIN 500
@@ -136,6 +136,9 @@ extern volatile uint16_t serial_send_ms;         /* previously SERIAL_SEND_MS */
 extern volatile uint8_t pwm_debug_enabled;       /* previously PWM_DEBUG */
 extern volatile uint8_t echo_debug_enabled;      /* previously ENABLE_ECHO_DEBUG */
 
+/* --- NEW: flowmeter pulse send debug flag --- */
+extern volatile uint8_t flowmeter_pulse_send_debug_enabled; /* 0/1: send packet on each flow pulse while in SYS_DEBUG */
+
 /* -- new runtime flags referenced by ISR / main -- */
 extern volatile uint8_t usb_serial_flag;      /* ISR sets when it's time to send serial packet */
 extern volatile uint8_t solenoid_test_enabled;/* runtime-controlled solenoid test */
@@ -178,7 +181,8 @@ typedef enum {
     CONFIG_TAG_FLOW_WINDOW_MS          = 0x0A, /* uint16_t, 2 bytes LE */
     CONFIG_TAG_FLOW_PULSES_PER_LITRE   = 0x0B, /* uint32_t, 4 bytes LE */
     CONFIG_TAG_ENABLE_LOOKUP_TABLE     = 0x0C, /* uint8_t, 1 byte */
-    CONFIG_TAG_PUMP_SAMPLE_TIME_MS     = 0x0D  /* uint16_t, 2 bytes LE */
+    CONFIG_TAG_PUMP_SAMPLE_TIME_MS     = 0x0D,  /* uint16_t, 2 bytes LE */
+	CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG = 0x0E  /* uint8_t, 1 byte (0/1) */  /* <-- new */
 } ConfigTag_t;
 
 /*

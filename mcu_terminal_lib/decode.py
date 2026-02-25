@@ -7,6 +7,7 @@ from mcu_comm.protocol import (
     MSG_HANDSHAKE_ACK,
     MSG_HEARTBEAT,
     MSG_TELEMETRY_PUSH,
+    MSG_FLOWMETER_PULSE_DEBUG,
     u32_from_le,
 )
 
@@ -76,6 +77,18 @@ def decode_and_show(pkt: dict, ui):
 
                 ui.update_state(st)
                 desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} FLOW={flow}mL/min TOTAL={total}mL"
+        elif msg_type == MSG_FLOWMETER_PULSE_DEBUG:
+            # payload expected: 9 bytes: [ts:u32][state:u8][pulse_total:u32]
+            if len(payload) >= 9:
+                ts = u32_from_le(payload[0:4])
+                st = payload[4]
+                pulse_total = u32_from_le(payload[5:9])
+
+                ui.update_state(st)
+                desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} PULSE_TOTAL={pulse_total}"
+                ui.mark_heartbeat()  # optional: treat these as activity
+            else:
+                desc += " (malformed)"
 
         ui.print_packet(f"[RX] {desc} | PAYLOAD: {format_hex(payload)}")
 

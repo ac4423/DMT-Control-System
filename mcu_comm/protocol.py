@@ -21,6 +21,9 @@ MSG_HANDSHAKE_ACK = 0x12
 MSG_HEARTBEAT = 0x13
 MSG_DESIRED_FLOW = 0x20
 MSG_DESIRED_FLOW_IMMEDIATE = 0x21
+# New application-level message code from MCU -> PC
+MSG_FLOWMETER_PULSE_DEBUG = 0x32  # payload: [ts:u32][state:u8][pulse_total:u32]
+
 
 # New debug function codes (must match MCU values)
 MSG_SET_PUMP_PWM = 0x30   # payload: [duty:1byte] - PC -> MCU
@@ -152,6 +155,8 @@ CONFIG_TAG_FLOW_PULSES_PER_LITRE   = 0x0B  # uint32_t
 CONFIG_TAG_ENABLE_LOOKUP_TABLE     = 0x0C  # uint8_t (0/1)
 CONFIG_TAG_PUMP_SAMPLE_TIME_MS     = 0x0D  # uint16_t (ms)
 
+CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG = 0x0E  # uint8_t (0/1)
+
 def build_tlv_field(tag: int, value: bytes) -> bytes:
     """
     Build a single TLV field: [tag][len][value...]
@@ -178,3 +183,33 @@ def build_config_payload(fields: list) -> bytes:
     if len(out) > COMMS_MAX_PAYLOAD:
         raise ValueError("config payload too long")
     return bytes(out)
+
+# Human-readable TLV tag info (used by CLI / tooling)
+# tag -> (name, length_expected, human_type)
+TLV_TAG_INFO = {
+    CONFIG_TAG_TELEMETRY_PERIOD_MS: ("telemetry_period_ms", 2, "uint16_t (ms)"),
+    CONFIG_TAG_HEARTBEAT_PERIOD_MS: ("heartbeat_period_ms", 2, "uint16_t (ms)"),
+    CONFIG_TAG_PI_KP: ("Pump_Control.kp", 4, "float"),
+    CONFIG_TAG_PI_KI: ("Pump_Control.ki", 4, "float"),
+    CONFIG_TAG_ENABLE_PI_CONTROL: ("pi_control_enabled", 1, "uint8_t (0/1)"),
+
+    CONFIG_TAG_ENABLE_USB_SERIAL_DEBUG: ("enable_usb_serial_debug", 1, "uint8_t (0/1)"),
+    CONFIG_TAG_SERIAL_SEND_MS: ("serial_send_ms", 2, "uint16_t (ms)"),
+    CONFIG_TAG_PWM_DEBUG: ("pwm_debug", 1, "uint8_t (0/1)"),
+    CONFIG_TAG_ENABLE_ECHO_DEBUG: ("enable_echo_debug", 1, "uint8_t (0/1)"),
+
+    CONFIG_TAG_FLOW_WINDOW_MS: ("flow_window_ms", 2, "uint16_t (ms)"),
+    CONFIG_TAG_FLOW_PULSES_PER_LITRE: ("flow_pulses_per_litre", 4, "uint32_t"),
+    CONFIG_TAG_ENABLE_LOOKUP_TABLE: ("enable_lookup_table", 1, "uint8_t (0/1)"),
+    CONFIG_TAG_PUMP_SAMPLE_TIME_MS: ("pump_sample_time_ms", 2, "uint16_t (ms)"),
+
+    # newly added tag:
+    CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG: ("flowmeter_pulse_send_debug_enabled", 1, "uint8_t (0/1)"),
+}
+
+def tag_name_to_tag(name: str) -> int:
+    """Return numeric tag for a human-readable tag name. Raises KeyError if unknown."""
+    for t, info in TLV_TAG_INFO.items():
+        if info[0] == name:
+            return t
+    raise KeyError(name)

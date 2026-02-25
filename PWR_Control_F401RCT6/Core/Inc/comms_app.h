@@ -39,3 +39,9 @@ extern volatile uint16_t heartbeat_counter;
 
 /* Non-blocking echo debug: called only when in SYS_DEBUG and echo_debug_enabled == 1 */
 void EchoDebug_Process(void);
+
+/* new: send & enqueue for flowmeter pulse debug */
+void Comms_SendFlowmeterPulseDebug(uint32_t ts, uint32_t pulse_total);
+void Comms_EnqueueFlowmeterPulse(uint32_t ts, uint32_t pulse_total);
+
+static void Comms_DrainFlowPulseQueue(void);

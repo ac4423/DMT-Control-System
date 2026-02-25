@@ -30,7 +30,8 @@ Core/Src/injection_and_flow.o: ../Core/Src/injection_and_flow.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Core/Inc/injection_and_flow.h ../Core/Inc/config.h \
  ../Core/Inc/config.h ../Core/Inc/main.h ../Core/Inc/tim.h \
- ../Core/Inc/usart.h ../Core/Inc/flow_lut.h
+ ../Core/Inc/usart.h ../Core/Inc/flow_lut.h ../Core/Inc/comms_app.h \
+ ../Core/Inc/state_machine.h
 ../Core/Inc/gpio.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -68,3 +69,5 @@ Core/Src/injection_and_flow.o: ../Core/Src/injection_and_flow.c \
 ../Core/Inc/tim.h:
 ../Core/Inc/usart.h:
 ../Core/Inc/flow_lut.h:
+../Core/Inc/comms_app.h:
+../Core/Inc/state_machine.h:
