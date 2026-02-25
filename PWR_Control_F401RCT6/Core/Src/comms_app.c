@@ -379,7 +379,9 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
             /* payload: [duty:1byte] */
             if (len >= 1) {
                 SysState_t st = StateMachine_GetState();
-                if (st != SYS_RUNNING_PI) {
+
+                /* accept command either from RUNNING_PI (enter debug) OR while already in SYS_DEBUG */
+                if (st != SYS_RUNNING_PI && st != SYS_DEBUG) {
                     if (send_ack_and_nack_packets) Comms_SendNack(seq);
                     break;
                 }
@@ -394,8 +396,10 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
                 /* set timer compare immediately; injection_and_flow uses same timer */
                 __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, manual_pwm_duty);
 
-                /* Enter SYS_DEBUG (state machine enforces allowed transitions) */
-                StateMachine_EnterDebug();
+                /* If we were running, transition to SYS_DEBUG; if already in SYS_DEBUG, do nothing */
+                if (st == SYS_RUNNING_PI) {
+                    StateMachine_EnterDebug();
+                }
 
                 if (send_ack_and_nack_packets) Comms_SendAck(seq);
             } else {

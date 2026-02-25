@@ -6,8 +6,8 @@
 ../Core/Src/comms_app.c:227:6:Comms_SendNack	2
 ../Core/Src/comms_app.c:237:6:Comms_SendTelemetry	1
 ../Core/Src/comms_app.c:250:6:Comms_SendHeartbeat	2
-../Core/Src/comms_app.c:274:13:Comms_OnPacket	35
-../Core/Src/comms_app.c:428:6:Comms_Init	1
-../Core/Src/comms_app.c:441:6:Comms_Process	1
-../Core/Src/comms_app.c:447:6:Comms_Tick	7
-../Core/Src/comms_app.c:476:6:EchoDebug_Process	5
+../Core/Src/comms_app.c:274:13:Comms_OnPacket	37
+../Core/Src/comms_app.c:432:6:Comms_Init	1
+../Core/Src/comms_app.c:445:6:Comms_Process	1
+../Core/Src/comms_app.c:451:6:Comms_Tick	7
+../Core/Src/comms_app.c:480:6:EchoDebug_Process	5
