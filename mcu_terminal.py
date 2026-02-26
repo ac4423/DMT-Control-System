@@ -50,6 +50,8 @@ from mcu_comm.driver import MCUComm
 from mcu_terminal_lib.commands import CommandProcessor
 from mcu_terminal_lib.decode import decode_and_show
 
+from mcu_comm.protocol import MSG_FLOWMETER_PULSE_DEBUG
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -109,9 +111,21 @@ def main():
         logger.exception("failed to open serial port")
         sys.exit(1)
 
+    # create FlowCalculator and register callback
+    from mcu_terminal_lib.flowcalc import FlowCalculator
+    flow_calc = FlowCalculator(flow_window_ms=250, flow_pulses_per_litre=1000, short_term_pulse_buffer_size=256)
+
+    ui.set_flow_calc(flow_calc)
+
+    # register both: decoder (for printing) and flow_calc (for computing flow)
+    # keep existing wildcard decoder
     comm.register_callback(None, lambda pkt: decode_and_show(pkt, ui))
 
-    processor = CommandProcessor(comm, ui, defaults, stop_event)
+    # register flow pulse debug callback for pulse packets
+    comm.register_callback(MSG_FLOWMETER_PULSE_DEBUG, flow_calc.packet_cb)
+
+    # pass flow_calc into command processor (so config commands can enable/disable it)
+    processor = CommandProcessor(comm, ui, defaults, stop_event, flow_calc)
 
     input_thread = threading.Thread(
         target=command_input_loop,

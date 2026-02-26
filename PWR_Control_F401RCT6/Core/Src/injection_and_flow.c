@@ -146,12 +146,39 @@ void FlowMeter_PulseCallback(void)
 /**
  * Update instantaneous flow (mL/min)
  */
+
+// race-free version according to GPT.
+/*
 void FlowMeter_UpdateInstantaneous(void)
 {
+    uint16_t count;
+    uint16_t index;
+
+    //* Local snapshot buffer (only copy what we need)
+    uint32_t local_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+
+    //* ---- Atomic Snapshot ----
     __disable_irq();
-    uint16_t count = Flow_State.short_term_count;
-    uint16_t index = Flow_State.short_term_index;
+
+    count = Flow_State.short_term_count;
+    index = Flow_State.short_term_index;
+
+    if (count > SHORT_TERM_PULSE_BUFFER_SIZE)
+        count = SHORT_TERM_PULSE_BUFFER_SIZE;
+
+    uint16_t oldest_index =
+        (index + SHORT_TERM_PULSE_BUFFER_SIZE - count) % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+    for (uint16_t i = 0; i < count; i++) {
+        uint16_t buf_index =
+            (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+        local_pulses[i] = Flow_State.short_term_pulses[buf_index];
+    }
+
     __enable_irq();
+    //* ---- End Atomic Snapshot ----
+
 
     if (count == 0) {
         Flow_State.last_flow_mlmin = 0;
@@ -162,13 +189,9 @@ void FlowMeter_UpdateInstantaneous(void)
     uint32_t window_start = now - flow_window_ms;
 
     uint16_t pulses_in_window = 0;
-    uint16_t oldest_index =
-        (index + SHORT_TERM_PULSE_BUFFER_SIZE - count) % SHORT_TERM_PULSE_BUFFER_SIZE;
 
     for (uint16_t i = 0; i < count; i++) {
-        uint16_t buf_index =
-            (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
-        if (Flow_State.short_term_pulses[buf_index] >= window_start)
+        if (local_pulses[i] >= window_start)
             pulses_in_window++;
     }
 
@@ -178,15 +201,13 @@ void FlowMeter_UpdateInstantaneous(void)
     }
 
     uint32_t t_first = 0xFFFFFFFF;
-    uint32_t t_last = 0;
+    uint32_t t_last  = 0;
 
     for (uint16_t i = 0; i < count; i++) {
-        uint16_t buf_index =
-            (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
-        uint32_t t = Flow_State.short_term_pulses[buf_index];
+        uint32_t t = local_pulses[i];
         if (t >= window_start) {
             if (t < t_first) t_first = t;
-            if (t > t_last) t_last = t;
+            if (t > t_last)  t_last  = t;
         }
     }
 
@@ -194,10 +215,100 @@ void FlowMeter_UpdateInstantaneous(void)
     if (delta_ms == 0) delta_ms = 1;
 
     uint32_t ml =
-        ((uint32_t)(pulses_in_window - 1) * 1000U) / (uint32_t)flow_pulses_per_litre;
+        ((uint32_t)(pulses_in_window - 1) * 1000U) /
+        (uint32_t)flow_pulses_per_litre;
 
     Flow_State.last_flow_mlmin =
-        (uint32_t)(((uint64_t)ml * 60000ULL) / (uint64_t)delta_ms);
+        (uint32_t)(((uint64_t)ml * 60000ULL) /
+                   (uint64_t)delta_ms);
+}
+*/
+
+void FlowMeter_UpdateInstantaneous(void)
+{
+    uint16_t count_snapshot;
+    uint16_t index_snapshot;
+
+    uint32_t local_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+
+    while (1)
+    {
+        __disable_irq();
+        count_snapshot = Flow_State.short_term_count;
+        index_snapshot = Flow_State.short_term_index;
+        __enable_irq();
+
+        if (count_snapshot == 0) {
+            Flow_State.last_flow_mlmin = 0;
+            return;
+        }
+
+        if (count_snapshot > SHORT_TERM_PULSE_BUFFER_SIZE)
+            count_snapshot = SHORT_TERM_PULSE_BUFFER_SIZE;
+
+        uint16_t oldest_index =
+            (index_snapshot + SHORT_TERM_PULSE_BUFFER_SIZE - count_snapshot)
+            % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+        /* Copy WITHOUT disabling IRQ */
+        for (uint16_t i = 0; i < count_snapshot; i++) {
+            uint16_t buf_index =
+                (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+            local_pulses[i] = Flow_State.short_term_pulses[buf_index];
+        }
+
+        /* Verify buffer didn’t change during copy */
+        __disable_irq();
+        uint16_t count_verify  = Flow_State.short_term_count;
+        uint16_t index_verify  = Flow_State.short_term_index;
+        __enable_irq();
+
+        if (count_verify == count_snapshot &&
+            index_verify == index_snapshot)
+        {
+            break;  // stable snapshot acquired
+        }
+
+        /* Otherwise retry */
+    }
+
+    uint32_t now = HAL_GetTick();
+    uint32_t window_start = now - flow_window_ms;
+
+    uint16_t pulses_in_window = 0;
+
+    for (uint16_t i = 0; i < count_snapshot; i++) {
+        if (local_pulses[i] >= window_start)
+            pulses_in_window++;
+    }
+
+    if (pulses_in_window < 2) {
+        Flow_State.last_flow_mlmin = 0;
+        return;
+    }
+
+    uint32_t t_first = 0xFFFFFFFF;
+    uint32_t t_last  = 0;
+
+    for (uint16_t i = 0; i < count_snapshot; i++) {
+        uint32_t t = local_pulses[i];
+        if (t >= window_start) {
+            if (t < t_first) t_first = t;
+            if (t > t_last)  t_last  = t;
+        }
+    }
+
+    uint32_t delta_ms = t_last - t_first;
+    if (delta_ms == 0) delta_ms = 1;
+
+    uint32_t ml =
+        ((uint32_t)(pulses_in_window - 1) * 1000U) /
+        (uint32_t)flow_pulses_per_litre;
+
+    Flow_State.last_flow_mlmin =
+        (uint32_t)(((uint64_t)ml * 60000ULL) /
+                   (uint64_t)delta_ms);
 }
 
 /**

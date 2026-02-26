@@ -90,6 +90,15 @@ def decode_and_show(pkt: dict, ui):
             else:
                 desc += " (malformed)"
 
+        # Respect UI-specified packet-type suppression: do not print if filtered.
+        try:
+            if hasattr(ui, "is_packet_type_filtered") and ui.is_packet_type_filtered(msg_type):
+                # do not display this packet type
+                return
+        except Exception:
+            # on error, fall back to showing the packet to avoid silent loss
+            pass
+
         ui.print_packet(f"[RX] {desc} | PAYLOAD: {format_hex(payload)}")
 
     except Exception:

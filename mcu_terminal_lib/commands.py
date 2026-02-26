@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 class CommandProcessor:
-    def __init__(self, comm: MCUComm, ui, defaults: dict, stop_event: 'threading.Event'):
+    def __init__(self, comm: MCUComm, ui, defaults: dict, stop_event: 'threading.Event', flow_calc=None):
+        self.flow_calc = flow_calc
         self.comm = comm
         self.ui = ui
         self.defaults = defaults
@@ -314,6 +315,70 @@ class CommandProcessor:
                     self.ui.print_cmd(f"[CMD ERR] resume failed: {e}")
                 return
 
+            # ----------------- SYS command (filters) -----------------
+            if cmd == "sys":
+                # usage:
+                #   sys filters
+                #   sys filter <type> hide|show
+                # Examples:
+                #   sys filters
+                #   sys filter 0x32 hide
+                #   sys filter 50 show
+                if len(tokens) < 2:
+                    self.ui.print_cmd("[CMD] usage: sys filters | sys filter <type> hide|show")
+                    return
+
+                sub = tokens[1].lower()
+
+                if sub in ("filters", "list"):
+                    # list current suppressed types
+                    if hasattr(self.ui, "list_packet_type_filters"):
+                        suppressed = self.ui.list_packet_type_filters()
+                        if suppressed:
+                            human = ", ".join(f"0x{t:02X}" for t in suppressed)
+                            self.ui.print_cmd(f"[SYS] Suppressed packet types: {human}")
+                        else:
+                            self.ui.print_cmd("[SYS] No suppressed packet types")
+                    else:
+                        self.ui.print_cmd("[SYS] UI does not support packet-type filters")
+                    return
+
+                if sub == "filter":
+                    if len(tokens) < 4:
+                        self.ui.print_cmd("[CMD] usage: sys filter <type> hide|show")
+                        return
+                    type_token = tokens[2]
+                    action = tokens[3].lower()
+                    try:
+                        # accept hex (0x..), decimal, etc.
+                        msg_type = int(type_token, 0) & 0xFF
+                    except ValueError:
+                        self.ui.print_cmd(f"[CMD ERR] invalid type '{type_token}' (use decimal or 0xNN)")
+                        return
+                    if action in ("hide", "off", "suppress", "0"):
+                        suppressed = True
+                    elif action in ("show", "on", "0x1", "1", "enable"):
+                        suppressed = False
+                    else:
+                        self.ui.print_cmd("[CMD] usage: sys filter <type> hide|show")
+                        return
+
+                    if hasattr(self.ui, "set_packet_type_filter"):
+                        try:
+                            self.ui.set_packet_type_filter(msg_type, suppressed)
+                            verb = "suppressed" if suppressed else "visible"
+                            self.ui.print_cmd(f"[SYS] Packet type 0x{msg_type:02X} now {verb}")
+                        except Exception:
+                            logger.exception("failed to set packet type filter")
+                            self.ui.print_cmd("[CMD ERR] failed to set filter (see log)")
+                    else:
+                        self.ui.print_cmd("[SYS] UI does not support packet-type filters")
+                    return
+
+                # unknown sys subcommand
+                self.ui.print_cmd("[CMD] unknown sys subcommand. Usage: sys filters | sys filter <type> hide|show")
+                return
+
             # send a config TLV (single field)
             if cmd == "config":
                 # usage:
@@ -436,6 +501,14 @@ class CommandProcessor:
                         val = 1 if v not in ("0", "false", "off", "no") else 0
                         seq = self.comm.send_config_u8(tag, val)
                         self.ui.print_cmd(f"[TX] MSG_CONFIG SEQ={seq} TAG=0x{tag:02X} VAL={val}")
+
+                        # If toggling flow pulse debug, enable/disable PC-side flow calculator
+                        if tag == CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG and self.flow_calc is not None:
+                            try:
+                                self.flow_calc.set_enabled(bool(val))
+                                self.ui.print_cmd(f"[INFO] Flow pulse debug {'ENABLED' if val else 'DISABLED'} on PC-side")
+                            except Exception:
+                                logger.exception("failed to update flow_calc enabled state")
                         return
 
                     # u32 tag for pulses_per_litre

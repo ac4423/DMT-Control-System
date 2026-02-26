@@ -44,6 +44,14 @@ class TerminalUI:
     def __init__(self, packet_lines: int = 16, cmd_lines: int = 30):
         self._lock = threading.RLock()
 
+        # flow display: optional FlowCalculator instance attached from main
+        self._flow_calc = None
+        self._last_drawn_flow = None
+
+        # suppressed packet types (integers, e.g. 0x32). UI-only display suppression.
+        # Use a set for quick membership checks.
+        self._suppressed_msg_types: set[int] = set()
+
         # runtime state
         self.last_state = None
         self.last_state_name = "UNKNOWN"
@@ -82,6 +90,21 @@ class TerminalUI:
         # internal cached dimensions
         self._height = 0
         self._width = 0
+
+    def set_flow_calc(self, flow_calc):
+        """
+        Attach a FlowCalculator instance (optional). The UI will call
+        flow_calc.get_last_flow() during draw_status_bar() when present.
+        """
+        with self._lock:
+            self._flow_calc = flow_calc
+            # reset cached flow
+            self._last_drawn_flow = None
+            # force a redraw of status bar to show initial value
+            try:
+                self.draw_status_bar()
+            except Exception:
+                pass
 
     # ----------------- curses lifecycle helpers -----------------
     def enter_alt_screen(self):
@@ -229,12 +252,40 @@ class TerminalUI:
             if self.last_handshake_ack_time is not None:
                 hs_age = f"{now - self.last_handshake_ack_time:.2f}s ago"
 
+            # default flow string (absent if no flow_calc attached)
+            flow_str = ""
+            if self._flow_calc is not None:
+                try:
+                    # read latest flow from FlowCalculator (thread-safe on its side)
+                    flow_val = int(self._flow_calc.get_last_flow())
+                    # simple caching so we only update the string when it changes
+                    if self._last_drawn_flow != flow_val:
+                        self._last_drawn_flow = flow_val
+                    flow_str = f" | PC_FLOW_DBG={flow_val}mL/min"
+                except Exception:
+                    # never raise from drawing path; show unknown
+                    flow_str = " | FLOW=?"
+            # Build the status line (preserve previous fields)
+            # suppressed list: show up to a few types, format as hex bytes
+            suppressed_str = ""
+            try:
+                suppressed = self.list_packet_type_filters()
+                if suppressed:
+                    # format like 0x32,0x03 ...
+                    s = ",".join(f"0x{v:02X}" for v in suppressed)
+                    suppressed_str = f" | SUPPRESSED={s}"
+            except Exception:
+                # swallow any error to keep UI stable
+                suppressed_str = ""
+
             line = (
                 f" MCU STATE: {self.last_state_name:<28}"
                 f" | Last HB: {hb_age:<12}"
                 f" | Last HS_ACK: {hs_age:<12}"
                 f" | Packets: {self.packet_count:<6}"
                 f" | Bad: {self.bad_packets:<4}"
+                f"{flow_str}"
+                f"{suppressed_str}"
             )
 
             if getattr(self, "packet_freeze", False):
@@ -242,7 +293,7 @@ class TerminalUI:
 
             try:
                 self.status_win.erase()
-                # trim to window width
+                # trim to window width (leave room for newline)
                 self.status_win.addnstr(0, 0, line, self._width - 1)
                 self.status_win.noutrefresh()
                 curses.doupdate()
@@ -465,6 +516,35 @@ class TerminalUI:
             self._redraw_packet_window()
             self._redraw_cmd_window()
             self.draw_input_prompt()
+
+    # --------------- packet-type filter API (UI/display only) ---------------
+    def set_packet_type_filter(self, msg_type: int, suppressed: bool):
+        """
+        Enable/disable suppression for a particular message type for display.
+        msg_type: integer 0..255
+        suppressed: True to hide (suppress) display, False to show
+        """
+        with self._lock:
+            if suppressed:
+                self._suppressed_msg_types.add(int(msg_type) & 0xFF)
+            else:
+                self._suppressed_msg_types.discard(int(msg_type) & 0xFF)
+            # refresh status line and packet window to reflect change
+            try:
+                self.draw_status_bar()
+                self._redraw_packet_window()
+            except Exception:
+                pass
+
+    def is_packet_type_filtered(self, msg_type: int) -> bool:
+        """Thread-safe check whether msg_type is currently suppressed for UI display."""
+        with self._lock:
+            return (int(msg_type) & 0xFF) in self._suppressed_msg_types
+
+    def list_packet_type_filters(self) -> list:
+        """Return a sorted list of currently suppressed msg types (ints)."""
+        with self._lock:
+            return sorted(self._suppressed_msg_types)
 
 
 # ----------------- Input loop -----------------
