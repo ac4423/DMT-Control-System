@@ -224,6 +224,8 @@ void FlowMeter_UpdateInstantaneous(void)
 }
 */
 
+#include <math.h>  // for isnan, isfinite
+
 void FlowMeter_UpdateInstantaneous(void)
 {
     uint16_t count_snapshot;
@@ -231,6 +233,7 @@ void FlowMeter_UpdateInstantaneous(void)
 
     uint32_t local_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
 
+    /* -------- Acquire Stable Snapshot -------- */
     while (1)
     {
         __disable_irq();
@@ -238,7 +241,7 @@ void FlowMeter_UpdateInstantaneous(void)
         index_snapshot = Flow_State.short_term_index;
         __enable_irq();
 
-        if (count_snapshot == 0) {
+        if (count_snapshot < 2) {
             Flow_State.last_flow_mlmin = 0;
             return;
         }
@@ -250,7 +253,6 @@ void FlowMeter_UpdateInstantaneous(void)
             (index_snapshot + SHORT_TERM_PULSE_BUFFER_SIZE - count_snapshot)
             % SHORT_TERM_PULSE_BUFFER_SIZE;
 
-        /* Copy WITHOUT disabling IRQ */
         for (uint16_t i = 0; i < count_snapshot; i++) {
             uint16_t buf_index =
                 (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
@@ -258,29 +260,48 @@ void FlowMeter_UpdateInstantaneous(void)
             local_pulses[i] = Flow_State.short_term_pulses[buf_index];
         }
 
-        /* Verify buffer didn’t change during copy */
         __disable_irq();
-        uint16_t count_verify  = Flow_State.short_term_count;
-        uint16_t index_verify  = Flow_State.short_term_index;
+        uint16_t count_verify = Flow_State.short_term_count;
+        uint16_t index_verify = Flow_State.short_term_index;
         __enable_irq();
 
         if (count_verify == count_snapshot &&
             index_verify == index_snapshot)
         {
-            break;  // stable snapshot acquired
+            break;
         }
 
-        /* Otherwise retry */
+        /* else retry snapshot */
     }
+    /* -------- End Snapshot -------- */
 
     uint32_t now = HAL_GetTick();
-    uint32_t window_start = now - flow_window_ms;
+
+    /* sanity: window must be non-zero */
+    if (flow_window_ms == 0) {
+        Flow_State.last_flow_mlmin = 0;
+        return;
+    }
 
     uint16_t pulses_in_window = 0;
+    uint32_t t_first = 0;
+    uint32_t t_last  = 0;
+    uint8_t first_found = 0;
 
+    /* ---- Wrap-safe windowing ---- */
     for (uint16_t i = 0; i < count_snapshot; i++) {
-        if (local_pulses[i] >= window_start)
+        uint32_t t = local_pulses[i];
+
+        uint32_t age = now - t;        /* unsigned wrap-safe */
+
+        if (age <= flow_window_ms) {
+            if (!first_found) {
+                t_first = t;
+                first_found = 1;
+            }
+            t_last = t;
             pulses_in_window++;
+        }
     }
 
     if (pulses_in_window < 2) {
@@ -288,27 +309,34 @@ void FlowMeter_UpdateInstantaneous(void)
         return;
     }
 
-    uint32_t t_first = 0xFFFFFFFF;
-    uint32_t t_last  = 0;
-
-    for (uint16_t i = 0; i < count_snapshot; i++) {
-        uint32_t t = local_pulses[i];
-        if (t >= window_start) {
-            if (t < t_first) t_first = t;
-            if (t > t_last)  t_last  = t;
-        }
+    /* Wrap-safe delta; should be >0 since pulses_in_window>=2 */
+    uint32_t delta_ms = t_last - t_first;
+    if (delta_ms == 0) {
+        Flow_State.last_flow_mlmin = 0;
+        return;
     }
 
-    uint32_t delta_ms = t_last - t_first;
-    if (delta_ms == 0) delta_ms = 1;
+    /* Avoid division by zero for pulses-per-litre */
+    uint32_t ppl = flow_pulses_per_litre;
+    if (ppl == 0) {
+        Flow_State.last_flow_mlmin = 0;
+        return;
+    }
 
-    uint32_t ml =
-        ((uint32_t)(pulses_in_window - 1) * 1000U) /
-        (uint32_t)flow_pulses_per_litre;
+    /* ---- Frequency -> volumetric flow (float) ---- */
+    float delta_s = (float)delta_ms / 1000.0f;
+    float frequency = (float)(pulses_in_window - 1) / delta_s;   /* Hz */
 
-    Flow_State.last_flow_mlmin =
-        (uint32_t)(((uint64_t)ml * 60000ULL) /
-                   (uint64_t)delta_ms);
+    float flow_mlmin = frequency * (1000.0f * 60.0f) / (float)ppl;
+
+    /* Defensive checks: NaN/Inf and clamp negative */
+    if (!isfinite(flow_mlmin) || flow_mlmin <= 0.0f) {
+        Flow_State.last_flow_mlmin = 0;
+        return;
+    }
+
+    /* round-to-nearest and store */
+    Flow_State.last_flow_mlmin = (uint32_t)(flow_mlmin + 0.5f);
 }
 
 /**

@@ -76,7 +76,7 @@ def main():
     parser.add_argument("--port", required=True)
     parser.add_argument("--baud", type=int, default=256000)
     parser.add_argument("--hb", type=int, default=500)
-    parser.add_argument("--tel", type=int, default=1000)
+    parser.add_argument("--tel", type=int, default=5880)
     parser.add_argument("--send-ack", type=int, default=1, choices=[0, 1])
     parser.add_argument("--extra", default="")
     parser.add_argument("--packet-lines", type=int, default=16, help="number of packet window lines (top)")
@@ -113,7 +113,7 @@ def main():
 
     # create FlowCalculator and register callback
     from mcu_terminal_lib.flowcalc import FlowCalculator
-    flow_calc = FlowCalculator(flow_window_ms=250, flow_pulses_per_litre=1000, short_term_pulse_buffer_size=256)
+    flow_calc = FlowCalculator(flow_window_ms=250, flow_pulses_per_litre=5880, short_term_pulse_buffer_size=256)
 
     ui.set_flow_calc(flow_calc)
 

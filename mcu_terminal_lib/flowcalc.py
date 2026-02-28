@@ -81,58 +81,60 @@ class FlowCalculator:
                 self.short_term_count += 1
 
     def _compute_instantaneous_locked(self):
-        """
-        Compute and store last_flow_mlmin into self.last_flow_mlmin.
-        This mirrors MCU FlowMeter_UpdateInstantaneous logic exactly:
-         - form window_start = now - flow_window_ms (now is taken from last pulse timestamp for determinism)
-         - count pulses >= window_start
-         - if pulses_in_window < 2 => flow = 0
-         - t_first = min t in window, t_last = max t in window
-         - delta_ms = t_last - t_first (clamp to 1)
-         - ml = (pulses_in_window - 1) * 1000 / pulses_per_litre
-         - flow_mlmin = (ml * 60000) / delta_ms
-        """
-        # assumes lock already held
-        if self.short_term_count == 0:
-            self.last_flow_mlmin = 0
+        if self.short_term_count < 2:
+            self.last_flow_mlmin = 0.0
             return
 
-        # copy active entries into local list (stable snapshot under lock)
         count = self.short_term_count
         idx = self.short_term_index
         oldest_index = (idx + self.buf_size - count) % self.buf_size
 
-        now = self.timestamps[(idx - 1) % self.buf_size]  # most recent pulse ts
-        window_start = now - self.flow_window_ms
+        now = self.timestamps[(idx - 1) % self.buf_size]
+        window_start = (now - self.flow_window_ms) & 0xFFFFFFFF
 
-        # count pulses_in_window
         pulses_in_window = 0
-        # We'll also collect min and max timestamps
-        t_first = 0xFFFFFFFF
-        t_last = 0
+        t_first = None
+        t_last = None
 
         for i in range(count):
             buf_idx = (oldest_index + i) % self.buf_size
             t = self.timestamps[buf_idx]
-            if t >= window_start:
-                pulses_in_window += 1
-                if t < t_first:
-                    t_first = t
-                if t > t_last:
-                    t_last = t
 
-        if pulses_in_window < 2 or t_last == 0 or t_first == 0xFFFFFFFF:
-            self.last_flow_mlmin = 0
+            # wrap-safe window check
+            age = (now - t) & 0xFFFFFFFF
+            if age <= self.flow_window_ms:
+                pulses_in_window += 1
+                if t_first is None:
+                    t_first = t
+                t_last = t
+
+        if pulses_in_window < 2:
+            self.last_flow_mlmin = 0.0
             return
 
-        delta_ms = t_last - t_first
+        # wrap-safe delta
+        delta_ms = (t_last - t_first) & 0xFFFFFFFF
         if delta_ms == 0:
-            delta_ms = 1
+            self.last_flow_mlmin = 0.0
+            return
 
-        # replicate MCU integer math:
-        ml = ((pulses_in_window - 1) * 1000) // max(1, int(self.flow_pulses_per_litre))
-        flow_mlmin = (ml * 60000) // delta_ms
-        self.last_flow_mlmin = int(flow_mlmin)
+        pulses_per_litre = float(self.flow_pulses_per_litre)
+        delta_s = delta_ms / 1000.0
+
+        # pulse frequency (Hz)
+        frequency = (pulses_in_window - 1) / delta_s
+
+        # convert Hz to ml/min
+        # 1 pulse = 1 / pulses_per_litre litres
+        # flow = frequency * (1/ppl) L/s * 1000 ml/L * 60 s/min
+        flow_mlmin = (
+            frequency
+            * (1.0 / pulses_per_litre)
+            * 1000.0
+            * 60.0
+        )
+
+        self.last_flow_mlmin = flow_mlmin
 
     def get_last_flow(self) -> int:
         with self.lock:
