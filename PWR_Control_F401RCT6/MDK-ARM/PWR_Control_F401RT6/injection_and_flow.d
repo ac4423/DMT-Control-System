@@ -34,4 +34,5 @@ pwr_control_f401rt6/injection_and_flow.o: \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_uart.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
   ..\Core\Inc\injection_and_flow.h ..\Core\Inc\config.h \
-  ..\Core\Inc\tim.h ..\Core\Inc\usart.h ..\Core\Inc\flow_lut.h
+  ..\Core\Inc\tim.h ..\Core\Inc\usart.h ..\Core\Inc\flow_lut.h \
+  ..\Core\Inc\comms_app.h ..\Core\Inc\state_machine.h

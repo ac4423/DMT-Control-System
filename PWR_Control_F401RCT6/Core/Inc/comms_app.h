@@ -45,3 +45,9 @@ void Comms_SendFlowmeterPulseDebug(uint32_t ts, uint32_t pulse_total);
 void Comms_EnqueueFlowmeterPulse(uint32_t ts, uint32_t pulse_total);
 
 static void Comms_DrainFlowPulseQueue(void);
+                                 
+extern uint8_t stepper_cmnd;
+#define GO_HOME                 0x01
+#define SET_MIDDLE              0x02
+#define SET_POSITION            0x03
+extern uint32_t set_pulses;

@@ -12,6 +12,8 @@
 #include "config.h"
 #include "injection_and_flow.h"
 #include "state_machine.h"
+#include "mks42d.h"
+#include "motor_control.h"
 #include <string.h>
 #include <tim.h>
 #include <stdbool.h>
@@ -29,6 +31,9 @@
 #define MSG_DESIRED_FLOW_IMMEDIATE 0x21
 #define MSG_DEBUG_FLOW_PULSE_COUNT 0x30
 #define MSG_FLOWMETER_PULSE_DEBUG 0x32  /* new message: [ts:u32][state:u8][pulse_total:u32] */
+#define MSG_GO_HOME             0x41
+#define MSG_SET_MIDDLE          0x42
+#define MSG_POSITION_MODE2      0x43
 
 /* New debug function codes */
 #define MSG_SET_PUMP_PWM        0x30  /* payload: [duty:1byte] -> forces SYS_DEBUG if accepted */
@@ -59,6 +64,9 @@ static inline void write_u32_le(uint8_t *buf, uint32_t v) {
 static inline uint32_t read_u32_le(const uint8_t *buf) {
     return (uint32_t)buf[0] | ((uint32_t)buf[1] << 8) | ((uint32_t)buf[2] << 16) | ((uint32_t)buf[3] << 24);
 }
+
+uint8_t stepper_cmnd = 0;
+uint32_t set_pulses = 0;
 
 /* ---------------- TLV config parser (preserve exactly original tags & effects) ---------------- */
 
@@ -210,7 +218,42 @@ bool Comms_ApplyConfigTLV(const uint8_t *payload, uint8_t len) {
                     if (config_cb) config_cb(tag, &payload[idx], tlen);
                 }
                 break;
+            case MSG_GO_HOME:
+                /* Payload: None
+                   Action: Hardcoded goHome for slave 0x03 */
+                stepper_cmnd = GO_HOME;
 
+                any_applied = true;
+                if (config_cb) config_cb(tag, &payload[idx], tlen);
+                break;
+
+            case MSG_SET_MIDDLE:
+                /* Payload: None (0 bytes). 
+                   Action: Hardcoded move to middle.
+                   Func: positionMode2Run(slave, speed, acc, pulses)
+                */
+                
+                // Call the function with your specific hardcoded values
+                stepper_cmnd = SET_MIDDLE;
+
+                // Send Acknowledgment
+                any_applied = true;
+                if (config_cb) config_cb(tag, &payload[idx], tlen);
+                break;
+
+            case MSG_POSITION_MODE2:
+                /* Payload: 4 bytes (int32_t Position, Little Endian)
+                   Hardcoded: Slave 0x03, Speed 1000, Acc 150 */
+                if (tlen >= 4)
+                {
+                    // Use existing helper to read 4 bytes
+                    set_pulses = (int32_t)read_u32_le(payload);
+                    stepper_cmnd = SET_POSITION;
+
+                    any_applied = true;
+                    if (config_cb) config_cb(tag, &payload[idx], tlen);
+                }
+                break;
             default:
                 /* unknown tag -> ignore */
                 break;
