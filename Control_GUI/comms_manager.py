@@ -1,28 +1,41 @@
+# comms_manager.py
+import sys
+import struct
 import serial
 import time
-import struct
 from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
+# Try to import MCUComm driver (primary)
+try:
+    from mcu_comm.driver import MCUComm
+    from mcu_comm.protocol import MSG_DESIRED_FLOW, MSG_DESIRED_FLOW_IMMEDIATE, MSG_TELEMETRY_PUSH as MSG_TELEMETRY
+except Exception:
+    MCUComm = None
+    MSG_DESIRED_FLOW = None
+    MSG_DESIRED_FLOW_IMMEDIATE = None
+    # Keep a fallback numeric value for telemetry if driver import fails (original value)
+    MSG_TELEMETRY = 0x03
+
 # --- Configuration ---
-# Update this if your Pi assigns a different port (e.g. /dev/ttyACM0)
 if sys.platform.startswith('win'):
-    SERIAL_PORT = "COM3"  # Change to your actual Windows COM port
+    SERIAL_PORT = "COM3"  # change to your Windows COM port if needed
 else:
     SERIAL_PORT = "/dev/ttyUSB0"
-BAUD_RATE = 256000  # Updated to match STM32 1Mbps
+BAUD_RATE = 256000  # original value in your code
 
-# --- Protocol Definitions ---
+# --- Protocol / legacy message IDs (keep same as original firmware mapping) ---
 HEADER_BYTE = 0xA5
-MSG_TELEMETRY = 0x03
 MSG_GO_HOME = 0x41
 MSG_SET_MIDDLE = 0x42
-MSG_POSITION_MODE2 = 0x43  # New command for absolute movement
+MSG_POSITION_MODE2 = 0x43  # Move-to absolute (steps)
 
+# ---------- Fallback legacy listener (kept for backward compatibility) ----------
 class CommsListener(QThread):
     """
-    Background thread to continuously read from Serial without freezing the GUI.
+    Legacy background thread that reads and parses frames directly from serial.
+    Kept as a fallback if MCUComm is not available.
     """
-    telemetry_received = pyqtSignal(int, int, int, int, int) # Time, State, Flow, Vol, Pos
+    telemetry_received = pyqtSignal(int, int, int, int, int)  # ts, state, flow, vol, pos
 
     def __init__(self, serial_port):
         super().__init__()
@@ -34,54 +47,40 @@ class CommsListener(QThread):
             if not self.ser or not self.ser.is_open:
                 self.msleep(100)
                 continue
-            
             try:
-                # 1. Wait for Header (0xA5)
                 if self.ser.in_waiting > 0:
                     byte = self.ser.read(1)
                     if byte == b'\xA5':
                         self._parse_packet()
                 else:
-                    self.msleep(1) # Prevent CPU hogging
+                    self.msleep(1)
             except Exception as e:
                 print(f"Serial Read Error: {e}")
                 self.msleep(100)
 
     def _parse_packet(self):
-        # We already read Header (0xA5).
-        # Need: TYPE(1) + SEQ(1) + LEN(1)
         header_rem = self.ser.read(3)
-        if len(header_rem) < 3: return
-
+        if len(header_rem) < 3:
+            return
         msg_type, seq, payload_len = struct.unpack('BBB', header_rem)
-
-        # Read Payload + CRC
         data = self.ser.read(payload_len + 1)
-        if len(data) < payload_len + 1: return
-
+        if len(data) < payload_len + 1:
+            return
         payload = data[:-1]
         received_crc = data[-1]
-
-        # CRC Check: XOR(Type, Seq, Payload...)
         calc_crc = msg_type ^ seq
         for b in payload:
             calc_crc ^= b
-        
         if calc_crc != received_crc:
             print("CRC Mismatch! Dropping packet.")
             return
-
-        # Handle Telemetry Packet (0x03)
         if msg_type == MSG_TELEMETRY:
             self._decode_telemetry(payload)
 
     def _decode_telemetry(self, payload):
-        # Payload size must be 21 bytes based on your STM32 code
-        if len(payload) != 21: 
+        # expected 21 bytes as before: < I(Time) B(State) I(Flow) I(Vol) i(Pos) I(Rsv)
+        if len(payload) != 21:
             return
-
-        # Format: < I(Time) B(State) I(Flow) I(Vol) i(Pos) I(Rsv)
-        # i = int32 (signed) for position
         try:
             ts, state, flow, vol, pos, rsv = struct.unpack('<IBIIiI', payload)
             self.telemetry_received.emit(ts, state, flow, vol, pos)
@@ -92,85 +91,177 @@ class CommsListener(QThread):
         self.running = False
         self.wait()
 
-
+# ---------- New CommsManager wrapper using MCUComm ----------
 class CommsManager(QObject):
-    # Re-emit signal for Main Window
-    telemetry_data = pyqtSignal(int, int, int, int, int)
+    """
+    Compatibility wrapper that prefers MCUComm driver but keeps the same API and signals
+    used by the rest of the GUI (telemetry_data signal, send_go_home, send_set_middle, send_move_to).
+    """
+    telemetry_data = pyqtSignal(int, int, int, int, int)  # ts, state, flow, vol, pos
 
     def __init__(self, port=SERIAL_PORT, baud=BAUD_RATE):
         super().__init__()
-        self.ser = None
-        self.seq_counter = 0
-        
-        try:
-            self.ser = serial.Serial(port, baud, timeout=0.1)
-            print(f"Connected to {port} at {baud} baud.")
-            
-            # Start Listening Thread
-            self.listener = CommsListener(self.ser)
-            self.listener.telemetry_received.connect(self.telemetry_data)
-            self.listener.start()
+        self.port = port
+        self.baud = baud
 
+        self.mcu = None
+        self._fallback_listener = None
+        self._ser = None  # only used for fallback
+
+        # Try primary driver (MCUComm)
+        if MCUComm is not None:
+            try:
+                self.mcu = MCUComm(port=self.port, baud=self.baud, timeout=0.05)
+                self.mcu.open()
+                # register callback for telemetry packets (runs on MCUComm read thread)
+                self.mcu.register_callback(MSG_TELEMETRY, self._on_mcu_packet)
+                # also register wildcard if you want all packets
+                # self.mcu.register_callback(None, self._on_mcu_packet)
+                print(f"CommsManager: connected via MCUComm on {self.port} @ {self.baud}")
+                return
+            except Exception as e:
+                print(f"CommsManager: MCUComm init failed, falling back to legacy listener: {e}")
+                self.mcu = None
+
+        # Fallback: open serial directly and start legacy CommsListener
+        try:
+            self._ser = serial.Serial(self.port, self.baud, timeout=0.1)
+            print(f"CommsManager: legacy serial connected on {self.port} @ {self.baud}")
+            self._fallback_listener = CommsListener(self._ser)
+            self._fallback_listener.telemetry_received.connect(self.telemetry_data)
+            self._fallback_listener.start()
         except serial.SerialException as e:
-            print(f"Error opening serial port: {e}")
+            print(f"CommsManager: error opening serial port: {e}")
+            self._ser = None
 
-    def _send_frame(self, msg_type, payload=b""):
-        if not self.ser or not self.ser.is_open:
+        # sequence counter kept for legacy _send_frame if used
+        self.seq_counter = 0
+
+    # ---- MCUComm callback handler ----
+    def _on_mcu_packet(self, pkt: dict):
+        """
+        Called in MCUComm's reader thread context. Decode telemetry frames and emit Qt signal.
+        Keep processing minimal in this thread; emitting a pyqtSignal is thread-safe.
+        """
+        if not pkt:
             return
+        # If parser indicated invalid, ignore
+        if "invalid" in pkt:
+            return
+        t = pkt.get("type")
+        payload = pkt.get("payload", b"")
+        # Telemetry packet ID expected to be MSG_TELEMETRY (0x03)
+        if t == MSG_TELEMETRY:
+            # same decoding as legacy: '<IBIIiI' (21 bytes)
+            if len(payload) == 21:
+                try:
+                    ts, state, flow, vol, pos, rsv = struct.unpack('<IBIIiI', payload)
+                    # Emit the same signal the rest of the UI expects.
+                    self.telemetry_data.emit(ts, state, flow, vol, pos)
+                except struct.error:
+                    # ignore decode errors
+                    pass
+            else:
+                # If telemetry format changes, you can add additional handling here
+                pass
 
-        seq = self.seq_counter % 256
-        length = len(payload)
-        
-        # 1. Build Header: HDR, TYPE, SEQ, LEN
-        header = struct.pack('BBBB', HEADER_BYTE, msg_type, seq, length)
-        
-        # 2. Calculate CRC
-        crc = msg_type ^ seq
-        for byte in payload:
-            crc ^= byte
-            
-        # 3. Construct final packet
-        packet = header + payload + struct.pack('B', crc)
-        
-        try:
-            self.ser.write(packet)
-            self.seq_counter += 1
-        except Exception as e:
-            print(f"Serial write error: {e}")
+    # ---- send helpers (compat API) ----
+    def _send_raw(self, msg_type: int, payload: bytes = b""):
+        """
+        Send a raw frame. If MCUComm is active, use it; otherwise fall back to legacy framing.
+        """
+        if self.mcu:
+            # reuse MCUComm send_frame (keeps MCU sequence handling)
+            try:
+                self.mcu.send_frame(msg_type, payload)
+            except Exception as e:
+                print("CommsManager: MCU send_frame error:", e)
+        else:
+            # legacy raw send via serial
+            if not self._ser or not self._ser.is_open:
+                print("CommsManager: serial port not open for raw send")
+                return
+            seq = self.seq_counter % 256
+            length = len(payload)
+            header = struct.pack('BBBB', HEADER_BYTE, msg_type, seq, length)
+            crc = msg_type ^ seq
+            for byte in payload:
+                crc ^= byte
+            packet = header + payload + struct.pack('B', crc)
+            try:
+                self._ser.write(packet)
+                self.seq_counter += 1
+            except Exception as e:
+                print(f"CommsManager: serial write error: {e}")
 
     def send_go_home(self, slave_addr=0x03):
-        """
-        Sends MSG_GO_HOME (0x41). Payload: [SlaveAddr]
-        """
         payload = struct.pack('B', slave_addr)
-        self._send_frame(MSG_GO_HOME, payload)
-        print("Command Sent: GO HOME")
+        self._send_raw(MSG_GO_HOME, payload)
+        print("CommsManager: Command Sent: GO HOME")
 
     def send_set_middle(self):
-        """
-        Sends MSG_SET_MIDDLE (0x42). Payload: None
-        """
-        # Simple command with no payload, matching MCU implementation
-        self._send_frame(MSG_SET_MIDDLE, b"")
-        print("Command Sent: SET MIDDLE")
+        self._send_raw(MSG_SET_MIDDLE, b"")
+        print("CommsManager: Command Sent: SET MIDDLE")
 
     def send_move_to(self, steps, slave_addr=0x03, speed=1000, acc=150):
-        """
-        Sends MSG_POSITION_MODE2 (0x43).
-        Payload Structure (Updated to 4 bytes):
-          - Steps (4 bytes, int32)
-        
-        Note: slave_addr, speed, and acc are ignored/hardcoded in the firmware now,
-        so we do not send them.
-        """
-        # Pack Little Endian (<), i=Int32 (4 bytes)
+        # current firmware expects steps as 4-byte signed int (little-endian)
         payload = struct.pack('<i', int(steps))
-        
-        self._send_frame(MSG_POSITION_MODE2, payload)
-        print(f"TX: Move To {int(steps)} steps")
+        self._send_raw(MSG_POSITION_MODE2, payload)
+        print(f"CommsManager: TX: Move To {int(steps)} steps")
+
+    def send_desired_flow(self, ml_per_min: int, immediate: bool = False):
+        """
+        If MCUComm supports the higher-level helper, call it; otherwise send raw frame
+        using MSG_DESIRED_FLOW / MSG_DESIRED_FLOW_IMMEDIATE IDs when available.
+        """
+        if self.mcu and hasattr(self.mcu, "send_desired_flow"):
+            try:
+                if immediate:
+                    # use new immediate helper if present
+                    if hasattr(self.mcu, "send_desired_flow_immediate"):
+                        self.mcu.send_desired_flow_immediate(int(ml_per_min))
+                    else:
+                        self.mcu.send_desired_flow(int(ml_per_min))
+                else:
+                    self.mcu.send_desired_flow(int(ml_per_min))
+                return
+            except Exception as e:
+                print("CommsManager: error calling MCUComm send_desired_flow:", e)
+
+        # Fallback: build raw 4-byte little-endian payload
+        payload = struct.pack('<I', int(ml_per_min) & 0xFFFFFFFF)
+        if immediate and MSG_DESIRED_FLOW_IMMEDIATE is not None:
+            self._send_raw(MSG_DESIRED_FLOW_IMMEDIATE, payload)
+        elif MSG_DESIRED_FLOW is not None:
+            self._send_raw(MSG_DESIRED_FLOW, payload)
+        else:
+            # Last resort: try sending as custom type 0x20 (original value)
+            self._send_raw(0x20, payload)
 
     def close(self):
-        if hasattr(self, 'listener'):
-            self.listener.stop()
-        if self.ser and self.ser.is_open:
-            self.ser.close()
+        # Close MCUComm if used
+        if self.mcu:
+            try:
+                self.mcu.close()
+            except Exception:
+                pass
+            self.mcu = None
+
+        # Stop fallback listener if any
+        if self._fallback_listener:
+            try:
+                self._fallback_listener.stop()
+            except Exception:
+                pass
+            self._fallback_listener = None
+
+        if self._ser and self._ser.is_open:
+            try:
+                self._ser.close()
+            except Exception:
+                pass
+            self._ser = None
+
+    # Optional: expose underlying MCUComm for advanced use (None if fallback used)
+    def get_mcu(self):
+        return self.mcu
