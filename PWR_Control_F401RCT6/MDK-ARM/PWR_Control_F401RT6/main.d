@@ -35,4 +35,5 @@ pwr_control_f401rt6/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Core\Inc\computer_bridge.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h ..\Core\Inc\uart_hal.h \
   ..\Core\Inc\config.h ..\Core\Inc\injection_and_flow.h \
-  ..\Core\Inc\state_machine.h ..\Core\Inc\comms.h
+  ..\Core\Inc\state_machine.h ..\Core\Inc\comms_protocol.h \
+  ..\Core\Inc\comms_app.h

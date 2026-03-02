@@ -485,14 +485,19 @@
               <FilePath>../Core/Src/stm32f4xx_hal_msp.c</FilePath>
             </File>
             <File>
-              <FileName>comms.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Src\comms.c</FilePath>
-            </File>
-            <File>
               <FileName>state_machine.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Core\Src\state_machine.c</FilePath>
+            </File>
+            <File>
+              <FileName>comms_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\comms_app.c</FilePath>
+            </File>
+            <File>
+              <FileName>comms_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\comms_protocol.c</FilePath>
             </File>
           </Files>
         </Group>
