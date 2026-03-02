@@ -205,7 +205,7 @@ int Config_ApplyTag(uint8_t tag, const void *payload, size_t len);
 /* ----------------- flowmeter 2 --------------- */
 
 #define DEFAULT_FLOW2_WINDOW_MS 200   /* ms; tune as needed */
-#define DEFAULT_FLOW2_PULSES_PER_LITRE 450  /* example; set to real sensor spec */
+#define DEFAULT_FLOW2_PULSES_PER_LITRE 450  /* example; set to real sensor spec */ // <<< -----------------------------------------------------
 
 /* Derived ticks for secondary flowmeter (in TIM6 ticks or same timebase) */
 extern uint32_t flowmeter2_window_ticks; /* derived ticks for secondary (MS_TO_TICKS(flow2_window_ms)) */

@@ -55,7 +55,15 @@ class DashboardWidget(QWidget):
         self.p_motor.setXLink(self.p_flow_main)
         self.p_pump.setXLink(self.p_flow_main)
         self.p_flow_inj.setXLink(self.p_flow_main)
+
+        # Disable auto-range so manual setXRange() will always take effect
+        self.p_flow_main.enableAutoRange(x=False, y=False)
+
+        # initial X range: 0..5s
         self.p_flow_main.setXRange(0, 5.0, padding=0)
+
+        # For telemetry timestamps we will compute time relative to the first packet:
+        self._base_ts_ms = None
 
         main_layout.addWidget(self.graph_container, 2)
 
@@ -181,3 +189,64 @@ class DashboardWidget(QWidget):
             max_y_px = 50 
             y_pos = min_y_px - (latest_height_mm / 150.0) * (min_y_px - max_y_px)
             self.laser_line.setGeometry(50, int(y_pos), 300, 4)
+
+    def add_telemetry_point(self, ts_ms, motor_steps, flow1_ml_min, flow2_ml_min, pump_rpm=0):
+        """
+        Add a single telemetry sample from MCU and immediately redraw so the plot follows.
+
+        Uses relative time (seconds since first telemetry packet) for the x-axis to avoid
+        issues with absolute timestamps or wrap-around.
+        """
+
+        # Establish base timestamp on first packet
+        if self._base_ts_ms is None:
+            try:
+                # prefer int/float; if invalid, fallback to wall-clock
+                self._base_ts_ms = float(ts_ms)
+            except Exception:
+                import time
+                self._base_ts_ms = time.time() * 1000.0
+
+        # Compute relative time in seconds
+        try:
+            t = (float(ts_ms) - float(self._base_ts_ms)) / 1000.0
+            if t < 0:
+                # if clock jumped backwards, reset base to current packet so times move forward
+                self._base_ts_ms = float(ts_ms)
+                t = 0.0
+        except Exception:
+            # fallback to wall-clock if payload ts unusable
+            import time
+            t = time.time()
+
+        # Append time and data to deques (they already have maxlen=WINDOW_SIZE)
+        self.x_data.append(t)
+
+        motor_mm = (motor_steps / 16384.0) * 10.0
+        self.y_motor.append(motor_mm)
+
+        self.y_pump.append(pump_rpm)
+
+        # flows are in mL/min per your axis labels
+        self.y_flow_inj.append(float(flow1_ml_min))
+        self.y_flow_main.append(float(flow2_ml_min))
+
+        # Draw curves from the deques
+        x_list = list(self.x_data)
+        self.curve_motor.setData(x_list, list(self.y_motor))
+        self.curve_pump.setData(x_list, list(self.y_pump))
+        self.curve_flow_inj.setData(x_list, list(self.y_flow_inj))
+        self.curve_flow_main.setData(x_list, list(self.y_flow_main))
+
+        # Scroll X-Axis to show the latest `window_seconds` of data (guaranteed follow)
+        window_seconds = 5.0
+        # If only a few points exist, still show 0..window_seconds
+        left = max(0.0, t - window_seconds)
+        right = max(window_seconds, t)  # ensures at least window_seconds shown initially
+        self.p_flow_main.setXRange(left, right, padding=0)
+
+        # Update laser visual (same math as before)
+        min_y_px = 550
+        max_y_px = 50
+        y_pos = min_y_px - (motor_mm / 150.0) * (min_y_px - max_y_px)
+        self.laser_line.setGeometry(50, int(y_pos), 300, 4)

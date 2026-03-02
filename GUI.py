@@ -64,18 +64,100 @@ class MainWindow(QMainWindow):
         self.dashboard = DashboardWidget()
         main_layout.addWidget(self.dashboard, stretch=1) 
 
-        # Hardware & Comms
+        # --- Hardware & Comms (replace existing block in __init__) ---
         self.is_running_dynamic = False
         self.is_running_static = False
-        
-        self.generator = DataGeneratorThread()
-        self.generator.data_generated.connect(self.dashboard.update_plots)
-        self.generator.start()
 
+        # create comms first (CommsManager will try MCUComm then fallback serial)
         if comms_port:
             self.comms = CommsManager(port=comms_port)
         else:
             self.comms = CommsManager()
+
+        self.comms.telemetry_data.connect(self._handle_telemetry)
+
+        # connect telemetry -> handler (works for legacy fallback signal signature:
+        # telemetry_data(ts, state, flow, vol, pos) )
+        self.comms.telemetry_data.connect(self._on_telemetry_packet)
+
+        # create the simulation generator but only start it if no comms link is present
+        self.generator = DataGeneratorThread()
+        self.generator.data_generated.connect(self.dashboard.update_plots)
+
+        # If real comms opened (MCU driver or serial), don't run the simulator
+        # He    uristic: if either MCU object exists (primary) or fallback serial was opened, assume real data will arrive.
+        has_real_comms = (getattr(self.comms, "mcu", None) is not None) or (getattr(self.comms, "_ser", None) is not None)
+        if not has_real_comms:
+            self.generator.start()
+        else:
+            # if simulator thread has start() side-effects remove/stop it just in case
+            try:
+                self.generator.stop()
+            except Exception:
+                pass
+
+    def _on_telemetry_packet(self, *args):
+        """
+        Adapter called when CommsManager.telemetry_data fires.
+        The legacy signal emits 5 ints: (ts, state, flow, vol, pos) where flow is mL/min (primary flow).
+        If MCU driver is present we try to fetch the decoded telemetry dict to get flow2 (secondary flow).
+        We convert flows from mL/min -> mL/s (divide by 60) before forwarding to dashboard.
+        """
+        # default values
+        ts = None
+        primary_ml_per_min = None
+        secondary_ml_per_min = None
+
+        # handle legacy five-arg tuple: (ts, state, flow, vol, pos)
+        if len(args) == 5:
+            ts = args[0]
+            primary_ml_per_min = args[2]
+        # in case signal changes in future and provides a dict (defensive):
+        elif len(args) == 1 and isinstance(args[0], dict):
+            pkt = args[0]
+            ts = pkt.get("ts")
+            # packet may have 'flow1' and 'flow2' if decoded by protocol.decode_telemetry
+            primary_ml_per_min = pkt.get("flow1") or pkt.get("flow")
+            secondary_ml_per_min = pkt.get("flow2")
+
+        # try to get flow2 from MCU driver if available (MCUComm stores last decoded telemetry)
+        try:
+            mcu = self.comms.get_mcu()
+            if mcu is not None:
+                latest = mcu.get_latest_telemetry()
+                if latest:
+                    # override if present
+                    if secondary_ml_per_min is None:
+                        secondary_ml_per_min = latest.get("flow2")
+                    if primary_ml_per_min is None:
+                        primary_ml_per_min = latest.get("flow1")
+        except Exception:
+            # don't crash GUI on driver inspection errors
+            pass
+
+        # if we at least have primary flow, convert units and forward to dashboard
+        if primary_ml_per_min is not None:
+            primary_ml_per_s = float(primary_ml_per_min) / 60.0
+        else:
+            primary_ml_per_s = None
+
+        if secondary_ml_per_min is not None:
+            secondary_ml_per_s = float(secondary_ml_per_min) / 60.0
+        else:
+            secondary_ml_per_s = None
+
+        # Call dashboard API (we add update_flow_rates below)
+        try:
+            self.dashboard.update_flow_rates(primary_ml_per_s, secondary_ml_per_s, timestamp=ts)
+        except AttributeError:
+            # if DashboardWidget doesn't have the helper yet but does accept raw plot updates,
+            # you can instead call its existing plot update function. Fallback:
+            try:
+                # try old-style: update_plots(primary, secondary)
+                self.dashboard.update_plots(primary_ml_per_s, secondary_ml_per_s)
+            except Exception:
+                # last resort: print for debug
+                print("Telemetry -> Dashboard failed; flows:", primary_ml_per_s, secondary_ml_per_s)
 
     # --- UI Helpers (Unchanged) ---
     def create_stepper_group(self, layout):
@@ -263,6 +345,36 @@ class MainWindow(QMainWindow):
         self.comms.close()
         self.generator.stop()
         super().closeEvent(event)
+
+    def _handle_telemetry(self, ts, state, flow1, total1, pos):
+        """
+        Called whenever telemetry packet arrives.
+        flow1  = injection flow (mL/min)
+        pos    = motor steps
+        """
+
+        # Try to get secondary flow from MCU driver (if using MCUComm)
+        flow2 = 0
+        try:
+            mcu = self.comms.get_mcu()
+            if mcu:
+                latest = mcu.get_latest_telemetry()
+                if latest:
+                    flow2 = latest.get("flow2", 0)
+        except Exception:
+            pass
+
+        # Pump RPM not currently in telemetry → set 0
+        pump_rpm = 0
+
+        # Send directly to dashboard
+        self.dashboard.add_telemetry_point(
+            ts_ms=ts,
+            motor_steps=pos,
+            flow1_ml_min=flow1,
+            flow2_ml_min=flow2,
+            pump_rpm=pump_rpm
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
