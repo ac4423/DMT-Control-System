@@ -3,12 +3,15 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
                              QPushButton, QHBoxLayout, QGroupBox, QDoubleSpinBox, 
                              QSpinBox, QLabel, QGridLayout)
 from PyQt6.QtCore import Qt, QTimer
-from hardware import DataGeneratorThread
-from displays import DashboardWidget
-from comms_manager import CommsManager 
+from Control_GUI.hardware import DataGeneratorThread
+from Control_GUI.displays import DashboardWidget
+from Control_GUI.comms_manager import CommsManager 
+
+import argparse
+from Control_GUI import comms_manager as comms_mod
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, comms_port: str | None = None):
         super().__init__()
         self.setWindowTitle("RPV Laser Scanner Control System")
         self.resize(1280, 900)
@@ -69,7 +72,10 @@ class MainWindow(QMainWindow):
         self.generator.data_generated.connect(self.dashboard.update_plots)
         self.generator.start()
 
-        self.comms = CommsManager() 
+        if comms_port:
+            self.comms = CommsManager(port=comms_port)
+        else:
+            self.comms = CommsManager()
 
     # --- UI Helpers (Unchanged) ---
     def create_stepper_group(self, layout):
@@ -259,7 +265,35 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="RPV Laser Scanner Control System GUI"
+    )
+    # use the comms_manager module default as the argparse default so help text matches real default
+    parser.add_argument(
+        "-p", "--port",
+        default=comms_mod.SERIAL_PORT,
+        help=f"Serial port to use for comms (default: {comms_mod.SERIAL_PORT})"
+    )
+    parser.add_argument(
+        "-b", "--baud",
+        default=None,
+        help="Optional: override baud rate for serial comms (if not provided the comms manager default is used)"
+    )
+
+    args = parser.parse_args()
+
+    # If a baud override was supplied, coerce to int and pass it along; otherwise pass None
+    baud_arg = int(args.baud) if args.baud is not None else None
+
     app = QApplication(sys.argv)
-    window = MainWindow()
+
+    # Instantiate MainWindow with the chosen port (and optionally you could expose baud too)
+    # Note: we only pass port to MainWindow; MainWindow will pass it on to CommsManager.
+    window = MainWindow(comms_port=args.port)
     window.show()
+
+    # If you want to propagate baud to CommsManager directly after construction:
+    # if baud_arg is not None and hasattr(window.comms, "baud"):
+    #     window.comms.baud = baud_arg
+
     sys.exit(app.exec())

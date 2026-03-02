@@ -1,2 +1,2 @@
-../Core/Src/motor_control.c:12:6:motor_test	3
-../Core/Src/motor_control.c:29:6:motor_read	5
+../Core/Src/motor_control.c:13:6:motor_test	3
+../Core/Src/motor_control.c:30:6:motor_read	9
