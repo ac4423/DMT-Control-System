@@ -473,6 +473,29 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
             }
             break;
 
+        case MSG_GO_HOME:
+            stepper_cmnd = GO_HOME;
+            if (send_ack_and_nack_packets) Comms_SendAck(seq);
+            break;
+
+        case MSG_SET_MIDDLE:
+            stepper_cmnd = SET_MIDDLE;
+            if (send_ack_and_nack_packets) Comms_SendAck(seq);
+            break;
+
+        case MSG_POSITION_MODE2:
+            if (len >= 4)
+            {
+                set_pulses = read_u32_le(payload);
+                stepper_cmnd = SET_POSITION;
+                if (send_ack_and_nack_packets) Comms_SendAck(seq);
+            }
+            else
+            {
+                if (send_ack_and_nack_packets) Comms_SendNack(seq);
+            }
+            break;
+
         default:
             /* Unknown message type -> NACK (legacy behavior) */
             if (send_ack_and_nack_packets) Comms_SendNack(seq);

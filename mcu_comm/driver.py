@@ -40,6 +40,10 @@ from .protocol import (
     CONFIG_TAG_FLOW_PULSES_PER_LITRE,
     CONFIG_TAG_ENABLE_LOOKUP_TABLE,
     CONFIG_TAG_PUMP_SAMPLE_TIME_MS,
+    # --- add the stepper message IDs here (ensure protocol exports these) ---
+    MSG_GO_HOME,
+    MSG_SET_MIDDLE,
+    MSG_POSITION_MODE2,
 )
 
 logger = logging.getLogger(__name__)
@@ -262,3 +266,36 @@ class MCUComm:
         from mcu_comm.protocol import CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG
         return self.send_config_bool(CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, enabled)
 
+    # ---- stepper / motor helpers ----
+    def send_stepper_go_home(self, slave_addr: int = 0x03) -> int:
+        """
+        Instruct the stepper to go home.
+        Payload (legacy): [slave_addr:1byte]
+        Returns the sequence number used.
+        """
+        if not (0 <= slave_addr <= 0xFF):
+            raise ValueError("slave_addr out of range 0..0xFF")
+        payload = bytes([slave_addr & 0xFF])
+        return self.send_frame(MSG_GO_HOME, payload)
+
+    def send_stepper_set_middle(self) -> int:
+        """
+        Instruct the stepper to move to the predefined 'middle' position.
+        No payload required (keeps parity with legacy implementation).
+        Returns the sequence number used.
+        """
+        return self.send_frame(MSG_SET_MIDDLE, b"")
+
+    def send_stepper_move_to(self, steps: int, slave_addr: int = 0x03,
+                             speed: int = 1000, acc: int = 150) -> int:
+        """
+        Move the stepper to an absolute position (position mode 2).
+        Firmware expects a 4-byte little-endian signed int (int32) with steps.
+        Note: firmware currently ignores slave/speed/acc arguments and uses hardcoded values,
+              but we keep them here for API clarity and future compatibility.
+
+        Returns the sequence number used.
+        """
+        # pack as signed 32-bit little-endian
+        payload = struct.pack('<i', int(steps))
+        return self.send_frame(MSG_POSITION_MODE2, payload)

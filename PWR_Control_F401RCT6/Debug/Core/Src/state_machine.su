@@ -7,4 +7,4 @@
 ../Core/Src/state_machine.c:123:6:StateMachine_EnterDebug	4	static
 ../Core/Src/state_machine.c:131:6:StateMachine_ExitDebug	4	static
 ../Core/Src/state_machine.c:150:6:StateMachine_ProcessTick	16	static
-../Core/Src/state_machine.c:237:6:StateMachine_EnterPairing	4	static
+../Core/Src/state_machine.c:241:6:StateMachine_EnterPairing	4	static

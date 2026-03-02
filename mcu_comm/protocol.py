@@ -24,6 +24,11 @@ MSG_DESIRED_FLOW_IMMEDIATE = 0x21
 # New application-level message code from MCU -> PC
 MSG_FLOWMETER_PULSE_DEBUG = 0x32  # payload: [ts:u32][state:u8][pulse_total:u32]
 
+# in mcu_comm/protocol.py (top-level constants)
+MSG_GO_HOME = 0x41
+MSG_SET_MIDDLE = 0x42
+MSG_POSITION_MODE2 = 0x43
+
 
 # New debug function codes (must match MCU values)
 MSG_SET_PUMP_PWM = 0x30   # payload: [duty:1byte] - PC -> MCU

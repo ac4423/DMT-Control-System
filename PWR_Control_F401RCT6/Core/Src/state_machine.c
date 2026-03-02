@@ -183,6 +183,10 @@ void StateMachine_ProcessTick(void) {
                    ensure safe behavior: do not run PI */
             }
             Update_Solenoid_State(); // this needs be active always -- coupled with the update_pump_state() function;
+
+            // this should set the stepper motor state: 
+            motor_read();
+
             break;
 
         case SYS_DEBUG:

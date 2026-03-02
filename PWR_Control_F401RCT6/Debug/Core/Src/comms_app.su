@@ -8,10 +8,10 @@
 ../Core/Src/comms_app.c:290:6:Comms_SendTelemetry	40	static
 ../Core/Src/comms_app.c:303:6:Comms_SendHeartbeat	24	static
 ../Core/Src/comms_app.c:327:13:Comms_OnPacket	48	static
-../Core/Src/comms_app.c:485:6:Comms_Init	16	static
-../Core/Src/comms_app.c:498:6:Comms_Process	8	static
-../Core/Src/comms_app.c:504:6:Comms_Tick	24	static
-../Core/Src/comms_app.c:538:6:EchoDebug_Process	80	static
-../Core/Src/comms_app.c:572:6:Comms_EnqueueFlowmeterPulse	16	static,ignoring_inline_asm
-../Core/Src/comms_app.c:591:6:Comms_SendFlowmeterPulseDebug	32	static
-../Core/Src/comms_app.c:601:13:Comms_DrainFlowPulseQueue	16	static,ignoring_inline_asm
+../Core/Src/comms_app.c:508:6:Comms_Init	16	static
+../Core/Src/comms_app.c:521:6:Comms_Process	8	static
+../Core/Src/comms_app.c:527:6:Comms_Tick	24	static
+../Core/Src/comms_app.c:561:6:EchoDebug_Process	80	static
+../Core/Src/comms_app.c:595:6:Comms_EnqueueFlowmeterPulse	16	static,ignoring_inline_asm
+../Core/Src/comms_app.c:614:6:Comms_SendFlowmeterPulseDebug	32	static
+../Core/Src/comms_app.c:624:13:Comms_DrainFlowPulseQueue	16	static,ignoring_inline_asm

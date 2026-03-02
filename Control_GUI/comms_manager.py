@@ -195,19 +195,56 @@ class CommsManager(QObject):
                 print(f"CommsManager: serial write error: {e}")
 
     def send_go_home(self, slave_addr=0x03):
-        payload = struct.pack('B', slave_addr)
+        """
+        Send GO HOME. Prefer MCUComm helper if available, otherwise fallback to raw frame.
+        """
+        if self.mcu and hasattr(self.mcu, "send_stepper_go_home"):
+            try:
+                self.mcu.send_stepper_go_home(int(slave_addr) & 0xFF)
+                print("CommsManager: Command Sent via MCUComm: GO HOME")
+                return
+            except Exception as e:
+                print("CommsManager: MCUComm send_stepper_go_home error:", e)
+
+        # Fallback legacy behavior (single byte slave_addr)
+        payload = struct.pack('B', int(slave_addr) & 0xFF)
         self._send_raw(MSG_GO_HOME, payload)
-        print("CommsManager: Command Sent: GO HOME")
+        print("CommsManager: Command Sent (legacy): GO HOME")
 
     def send_set_middle(self):
+        """
+        Send SET MIDDLE. Prefer MCUComm helper if available, otherwise fallback to raw frame.
+        """
+        if self.mcu and hasattr(self.mcu, "send_stepper_set_middle"):
+            try:
+                self.mcu.send_stepper_set_middle()
+                print("CommsManager: Command Sent via MCUComm: SET MIDDLE")
+                return
+            except Exception as e:
+                print("CommsManager: MCUComm send_stepper_set_middle error:", e)
+
+        # Fallback: no payload
         self._send_raw(MSG_SET_MIDDLE, b"")
-        print("CommsManager: Command Sent: SET MIDDLE")
+        print("CommsManager: Command Sent (legacy): SET MIDDLE")
 
     def send_move_to(self, steps, slave_addr=0x03, speed=1000, acc=150):
-        # current firmware expects steps as 4-byte signed int (little-endian)
+        """
+        Send Move To (absolute steps). Prefer MCUComm helper if available.
+        """
+        if self.mcu and hasattr(self.mcu, "send_stepper_move_to"):
+            try:
+                # driver will pack as signed int32
+                self.mcu.send_stepper_move_to(int(steps), slave_addr=int(slave_addr),
+                                              speed=int(speed), acc=int(acc))
+                print(f"CommsManager: TX via MCUComm: Move To {int(steps)} steps")
+                return
+            except Exception as e:
+                print("CommsManager: MCUComm send_stepper_move_to error:", e)
+
+        # Fallback: legacy packet (4-byte little-endian signed int)
         payload = struct.pack('<i', int(steps))
         self._send_raw(MSG_POSITION_MODE2, payload)
-        print(f"CommsManager: TX: Move To {int(steps)} steps")
+        print(f"CommsManager: TX (legacy) Move To {int(steps)} steps")
 
     def send_desired_flow(self, ml_per_min: int, immediate: bool = False):
         """
