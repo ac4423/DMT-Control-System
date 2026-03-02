@@ -174,6 +174,10 @@ void StateMachine_ProcessTick(void) {
             FlowMeter_UpdateInstantaneous();
             FlowMeter_UpdateTotal();
 
+            /* Also update secondary flowmeter */
+            FlowMeter2_UpdateInstantaneous();
+            FlowMeter2_UpdateTotal();
+
             /* update pump state using runtime flags (lookup table and PI) */
             if (!pwm_debug_enabled && !manual_pwm_enabled) {
                 update_pump_state();
@@ -195,11 +199,16 @@ void StateMachine_ProcessTick(void) {
                Echo and solenoid test run ONLY while in SYS_DEBUG.
             */
         	Update_Solenoid_State();
+
         	FlowMeter_UpdateInstantaneous();
 			FlowMeter_UpdateTotal();
+
+        	FlowMeter2_UpdateInstantaneous();
+			FlowMeter2_UpdateTotal();
+
             if (manual_pwm_enabled) {
                 /* ensure manual PWM enforced each tick */
-                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump);
+                __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, Pump_Control.duty_pump);
             } else if (pwm_debug_enabled) {
                 GenerateSawWaveDebug();
             }

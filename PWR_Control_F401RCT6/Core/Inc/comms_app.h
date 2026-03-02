@@ -41,8 +41,8 @@ extern volatile uint16_t heartbeat_counter;
 void EchoDebug_Process(void);
 
 /* new: send & enqueue for flowmeter pulse debug */
-void Comms_SendFlowmeterPulseDebug(uint32_t ts, uint32_t pulse_total);
-void Comms_EnqueueFlowmeterPulse(uint32_t ts, uint32_t pulse_total);
+void Comms_SendFlowmeterPulseDebug(uint32_t ts, uint8_t meter_id, uint32_t pulse_total);
+void Comms_EnqueueFlowmeterPulse(uint32_t ts, uint8_t meter_id, uint32_t pulse_total);
 
 static void Comms_DrainFlowPulseQueue(void);
                                  

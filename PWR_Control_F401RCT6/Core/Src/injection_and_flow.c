@@ -12,8 +12,9 @@
 #include "comms_app.h" /* for Comms_EnqueueFlowmeterPulse() */
 #include "state_machine.h" /* if not already included */
 
-/* Global flow state instance */
+/* Global flow state instances */
 volatile FlowState_t Flow_State = {0};
+volatile FlowState_t Flow_State2 = {0}; /* secondary flowmeter */
 volatile PumpControl_t Pump_Control;
 
 /* --- External HAL tick function --- */
@@ -67,6 +68,29 @@ void InjectionAndFlow_Init(void)
 
     Pump_Control.solenoid_flag = 0;
     Pump_Control.solenoid_counter = 0;
+
+    /* --- Initialize secondary flowmeter state --- */
+    Flow_State2.pulse_count_window = 0;
+    Flow_State2.pulse_count_total = 0;
+    Flow_State2.short_term_index = 0;
+    Flow_State2.short_term_count = 0;
+    Flow_State2.last_flow_mlmin = 0;
+    Flow_State2.total_ml = 0;
+
+    #if RECORD_PULSE_TIMESTAMPS
+        Flow_State2.pulse_delta_index = 0;
+        // Flow_State2.delta_accumulator maybe not needed for second if not recording - but set to 0
+        Flow_State2.delta_accumulator = 0;
+    #endif
+
+    /* Clear short-term pulse buffer for meter2 */
+    for (uint16_t i = 0; i < SHORT_TERM_PULSE_BUFFER_SIZE; i++) {
+        Flow_State2.short_term_pulses[i] = UNPOPULATED_ELEMENT_MARKER;
+    }
+
+    flow2_window_ms = DEFAULT_FLOW2_WINDOW_MS;
+    flow2_pulses_per_litre = DEFAULT_FLOW2_PULSES_PER_LITRE;
+    flowmeter2_window_ticks = MS_TO_TICKS(flow2_window_ms);
 }
 
 #if RECORD_PULSE_TIMESTAMPS
@@ -106,7 +130,7 @@ void FlowMeter_TickHook(void)
  */
 void FlowMeter_PulseCallback(void)
 {
-    uint32_t now = HAL_GetTick();
+    uint32_t now = HAL_GetTick(); //otherwise: now = SYS_TICK
 
     /* --- Short-term buffer --- */
     Flow_State.short_term_pulses[Flow_State.short_term_index] = now;
@@ -125,7 +149,7 @@ void FlowMeter_PulseCallback(void)
         SysState_t st = StateMachine_GetState();
         if (st == SYS_DEBUG) {
             /* capture current tick (we already have 'now' earlier) and total */
-            Comms_EnqueueFlowmeterPulse(now, Flow_State.pulse_count_total);
+            Comms_EnqueueFlowmeterPulse(now, 0, Flow_State.pulse_count_total); // 0 for injeciton pump meter
         }
     }
 
@@ -426,7 +450,7 @@ void update_pump_state(void)
             // Use PI controller
 
         // Apply new pump duty
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump); // timer3 for PWM output
+        __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, Pump_Control.duty_pump); // timer5 - channel 2 for PWM output
     }
 }
 
@@ -524,6 +548,171 @@ void GenerateSawWaveDebug(void)
         }
 
         // Apply PWM directly (bypass PI/LUT)
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, saw_pwm_duty);
+        __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, saw_pwm_duty);
     }
+}
+
+/* --------- second flow meter ------------ */
+
+// config.h (add)
+extern volatile uint16_t flow2_window_ms;           /* ms window for instantaneous calc */
+extern volatile uint32_t flow2_pulses_per_litre;    /* pulses per litre for meter 2 */
+
+/* (optional) ticks cached */
+extern volatile uint32_t flowmeter2_window_ticks;
+
+/**
+ * Call on every pulse from secondary flowmeter (TIMx IC interrupt)
+ * - This should be invoked from the TIM IC capture callback for the configured pin/channel.
+ */
+void FlowMeter2_PulseCallback(void)
+{
+    uint32_t now = HAL_GetTick();
+
+    /* short-term buffer (mirror primary) */
+    Flow_State2.short_term_pulses[Flow_State2.short_term_index] = now;
+    Flow_State2.short_term_index = (Flow_State2.short_term_index + 1) % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+    if (Flow_State2.short_term_count < SHORT_TERM_PULSE_BUFFER_SIZE)
+        Flow_State2.short_term_count++;
+
+    /* long-term counting */
+    Flow_State2.pulse_count_window++;
+    Flow_State2.pulse_count_total++;
+
+    /* do not enqueue debug packet for flow2 (per your request) */
+
+#if RECORD_PULSE_TIMESTAMPS
+    if (Flow_State2.pulse_delta_index < LONG_TERM_PULSE_ARRAY_CAPACITY) {
+        uint32_t d = Flow_State2.delta_accumulator;
+
+        if (d > PULSE_DELTA_SOFT_MAX)
+            Flow_State2.pulse_deltas[Flow_State2.pulse_delta_index++] = PULSE_OVERFLOW_MARKER;
+        else
+            Flow_State2.pulse_deltas[Flow_State2.pulse_delta_index++] = (uint16_t)d;
+    }
+    Flow_State2.delta_accumulator = 0;
+#endif
+}
+
+void FlowMeter2_UpdateInstantaneous(void)
+{
+    uint16_t count_snapshot;
+    uint16_t index_snapshot;
+    uint32_t local_pulses[SHORT_TERM_PULSE_BUFFER_SIZE];
+
+    /* Acquire stable snapshot (same retry approach as primary) */
+    while (1)
+    {
+        __disable_irq();
+        count_snapshot = Flow_State2.short_term_count;
+        index_snapshot = Flow_State2.short_term_index;
+        __enable_irq();
+
+        if (count_snapshot < 2) {
+            Flow_State2.last_flow_mlmin = 0;
+            return;
+        }
+
+        if (count_snapshot > SHORT_TERM_PULSE_BUFFER_SIZE)
+            count_snapshot = SHORT_TERM_PULSE_BUFFER_SIZE;
+
+        uint16_t oldest_index =
+            (index_snapshot + SHORT_TERM_PULSE_BUFFER_SIZE - count_snapshot)
+            % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+        for (uint16_t i = 0; i < count_snapshot; i++) {
+            uint16_t buf_index =
+                (oldest_index + i) % SHORT_TERM_PULSE_BUFFER_SIZE;
+
+            local_pulses[i] = Flow_State2.short_term_pulses[buf_index];
+        }
+
+        __disable_irq();
+        uint16_t count_verify = Flow_State2.short_term_count;
+        uint16_t index_verify = Flow_State2.short_term_index;
+        __enable_irq();
+
+        if (count_verify == count_snapshot &&
+            index_verify == index_snapshot)
+        {
+            break;
+        }
+
+        /* else retry snapshot */
+    }
+
+    uint32_t now = HAL_GetTick();
+
+    if (flow2_window_ms == 0) {
+        Flow_State2.last_flow_mlmin = 0;
+        return;
+    }
+
+    uint16_t pulses_in_window = 0;
+    uint32_t t_first = 0;
+    uint32_t t_last  = 0;
+    uint8_t first_found = 0;
+
+    for (uint16_t i = 0; i < count_snapshot; i++) {
+        uint32_t t = local_pulses[i];
+        uint32_t age = now - t;
+        if (age <= flow2_window_ms) {
+            if (!first_found) {
+                t_first = t;
+                first_found = 1;
+            }
+            t_last = t;
+            pulses_in_window++;
+        }
+    }
+
+    if (pulses_in_window < 2) {
+        Flow_State2.last_flow_mlmin = 0;
+        return;
+    }
+
+    uint32_t delta_ms = t_last - t_first;
+    if (delta_ms == 0) {
+        Flow_State2.last_flow_mlmin = 0;
+        return;
+    }
+
+    uint32_t ppl = flow2_pulses_per_litre;
+    if (ppl == 0) {
+        Flow_State2.last_flow_mlmin = 0;
+        return;
+    }
+
+    float delta_s = (float)delta_ms / 1000.0f;
+    float frequency = (float)(pulses_in_window - 1) / delta_s;   /* Hz */
+    float flow_mlmin = frequency * (1000.0f * 60.0f) / (float)ppl;
+
+    if (!isfinite(flow_mlmin) || flow_mlmin <= 0.0f) {
+        Flow_State2.last_flow_mlmin = 0;
+        return;
+    }
+
+    Flow_State2.last_flow_mlmin = (uint32_t)(flow_mlmin + 0.5f);
+}
+
+void FlowMeter2_UpdateTotal(void)
+{
+    Flow_State2.total_ml =
+        ((uint32_t)Flow_State2.pulse_count_total * 1000U) / (uint32_t)flow2_pulses_per_litre;
+}
+
+uint32_t FlowMeter2_GetFlow_mLmin(void)
+{
+    return Flow_State2.last_flow_mlmin;
+}
+
+uint32_t FlowMeter2_GetTotal_mL(void)
+{
+    return Flow_State2.total_ml;
+}
+
+uint32_t FlowMeter2_GetPulseTotal(void)
+{
+    return Flow_State2.pulse_count_total;
 }

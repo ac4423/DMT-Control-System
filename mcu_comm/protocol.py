@@ -218,3 +218,39 @@ def tag_name_to_tag(name: str) -> int:
         if info[0] == name:
             return t
     raise KeyError(name)
+
+# --- telemetry format (new fixed length) ---
+TELEMETRY_LEN = 21  # [ts:u32][state:u8][flow1:u32][total1:u32][flow2:u32][total2:u32]
+
+def decode_telemetry(payload: bytes) -> dict:
+    """
+    Decode telemetry payload (expected 21 bytes).
+    Returns dict:
+      { 'ts': int,
+        'state': int,
+        'flow1': int,   # mL/min
+        'total1': int,  # mL
+        'flow2': int,   # mL/min (secondary)
+        'total2': int,  # mL (secondary)
+      }
+    Raises ValueError on wrong length.
+    """
+    if len(payload) != TELEMETRY_LEN:
+        raise ValueError(f"Telemetry payload must be {TELEMETRY_LEN} bytes, got {len(payload)}")
+
+    # little-endian reads
+    ts = u32_from_le(payload[0:4])
+    state = payload[4]
+    flow1 = u32_from_le(payload[5:9])
+    total1 = u32_from_le(payload[9:13])
+    flow2 = u32_from_le(payload[13:17])
+    total2 = u32_from_le(payload[17:21])
+
+    return {
+        "ts": ts,
+        "state": state,
+        "flow1": flow1,
+        "total1": total1,
+        "flow2": flow2,
+        "total2": total2,
+    }

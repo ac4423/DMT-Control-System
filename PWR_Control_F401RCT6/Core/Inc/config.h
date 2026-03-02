@@ -202,4 +202,10 @@ void Config_RecomputeDerivedTicks(void);
 /* helper to apply a config TLV tag payload into runtime config */
 int Config_ApplyTag(uint8_t tag, const void *payload, size_t len);
 
+/* ----------------- flowmeter 2 --------------- */
+
+#define DEFAULT_FLOW2_WINDOW_MS 200   /* ms; tune as needed */
+#define DEFAULT_FLOW2_PULSES_PER_LITRE 450  /* example; set to real sensor spec */
+
 #endif // CONFIG_H
+

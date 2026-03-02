@@ -18,6 +18,9 @@ from typing import Callable, Dict, List, Optional
 from .protocol import PacketParser, build_frame, xor_crc, u16_le, u32_le, MSG_DESIRED_FLOW, MSG_DESIRED_FLOW_IMMEDIATE
 from .protocol import CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, MSG_FLOWMETER_PULSE_DEBUG
 
+# near other imports from .protocol
+from .protocol import decode_telemetry, MSG_TELEMETRY_PUSH
+
 # Add imports at top of file (if not already present)
 import struct
 # mcu_comm/driver.py (patch - imports)
@@ -61,6 +64,17 @@ class MCUComm:
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
         self._seq = 0
+
+        # latest parsed telemetry (dict) — updated by internal handler
+        self._latest_telemetry: Optional[dict] = None
+
+        # telemetry-specific callbacks: called with parsed telemetry dict
+        self._telemetry_callbacks: List[Callable[[dict], None]] = []
+
+
+        # register internal parser for telemetry messages so we always decode them
+        # BEFORE user callbacks (we register internal handler first)
+        self.register_callback(MSG_TELEMETRY_PUSH, self._handle_telemetry_packet)
 
     # ---- lifecycle ----
     def open(self):
@@ -299,3 +313,51 @@ class MCUComm:
         # pack as signed 32-bit little-endian
         payload = struct.pack('<i', int(steps))
         return self.send_frame(MSG_POSITION_MODE2, payload)
+    
+    # ---- internal telemetry handling ----
+    def _handle_telemetry_packet(self, pkt: dict):
+        """
+        Internal callback registered for MSG_TELEMETRY_PUSH packets.
+        Parses payload (using protocol.decode_telemetry) and updates internal state.
+        Also calls any registered telemetry callbacks.
+        pkt: dict from PacketParser: {'type','seq','len','payload','crc'}
+        """
+        payload = pkt.get("payload", b"")
+        try:
+            tel = decode_telemetry(payload)
+        except Exception as e:
+            logger.exception("Failed to decode telemetry payload: %s", e)
+            return
+
+        # store latest telemetry
+        self._latest_telemetry = tel
+
+        # notify telemetry-specific callbacks
+        for cb in list(self._telemetry_callbacks):
+            try:
+                cb(tel)
+            except Exception:
+                logger.exception("telemetry callback error")
+
+    # ---- telemetry helpers (public) ----
+    def register_telemetry_callback(self, cb: Callable[[dict], None]) -> None:
+        """
+        Register a callback that will be called with parsed telemetry dicts
+        whenever a telemetry packet arrives.
+        """
+        self._telemetry_callbacks.append(cb)
+
+    def unregister_telemetry_callback(self, cb: Callable[[dict], None]) -> None:
+        if cb in self._telemetry_callbacks:
+            self._telemetry_callbacks.remove(cb)
+
+    def get_latest_telemetry(self) -> Optional[dict]:
+        """Return the most recently parsed telemetry dict, or None if none received yet."""
+        return self._latest_telemetry
+
+    def get_latest_secondary_flow(self) -> Optional[int]:
+        """Convenience: return the latest secondary flow (flow2, mL/min) or None."""
+        tel = self._latest_telemetry
+        if tel is None:
+            return None
+        return tel.get("flow2")

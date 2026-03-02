@@ -286,16 +286,28 @@ void Comms_SendNack(uint8_t seq) {
     CommsProtocol_Send(MSG_NACK, seq, payload, sizeof(payload));
 }
 
-/* Telemetry (timestamp, state, flow, total) */
-void Comms_SendTelemetry(void) {
-    uint8_t payload[13];
+void Comms_SendTelemetry(void)
+{
+    uint8_t payload[21];
+
     uint32_t ts = SYSTEM_TICK;
-    uint32_t flow = FlowMeter_GetFlow_mLmin();
-    uint32_t total = FlowMeter_GetTotal_mL();
+    uint8_t state = (uint8_t)StateMachine_GetState();
+
+    uint32_t flow1  = FlowMeter_GetFlow_mLmin();
+    uint32_t total1 = FlowMeter_GetTotal_mL();
+
+    uint32_t flow2  = FlowMeter2_GetFlow_mLmin();
+    uint32_t total2 = FlowMeter2_GetTotal_mL();
+
     write_u32_le(&payload[0], ts);
-    payload[4] = (uint8_t)StateMachine_GetState();
-    write_u32_le(&payload[5], flow);
-    write_u32_le(&payload[9], total);
+    payload[4] = state;
+
+    write_u32_le(&payload[5],  flow1);
+    write_u32_le(&payload[9],  total1);
+
+    write_u32_le(&payload[13], flow2);
+    write_u32_le(&payload[17], total2);
+
     CommsProtocol_Send(MSG_TELEMETRY_PUSH, seq_counter++, payload, sizeof(payload));
 }
 
@@ -583,6 +595,7 @@ void EchoDebug_Process(void)
 #define FLOW_PULSE_QUEUE_SIZE 16
 typedef struct {
     uint32_t ts;
+    uint8_t  meter_id;
     uint32_t pulse_total;
 } FlowPulseEvent_t;
 
@@ -592,32 +605,39 @@ static volatile uint8_t flow_pulse_q_tail = 0; /* next write index (ISR) */
 static volatile uint8_t flow_pulse_q_count = 0; /* number of elements queued */
 
 /* ISR-safe enqueue: call from FlowMeter_PulseCallback() */
-void Comms_EnqueueFlowmeterPulse(uint32_t ts, uint32_t pulse_total)
+void Comms_EnqueueFlowmeterPulse(uint32_t ts,
+                                 uint8_t meter_id,
+                                 uint32_t pulse_total)
 {
-    /* short critical section to protect queue indices */
     __disable_irq();
 
     if (flow_pulse_q_count < FLOW_PULSE_QUEUE_SIZE) {
         flow_pulse_queue[flow_pulse_q_tail].ts = ts;
+        flow_pulse_queue[flow_pulse_q_tail].meter_id = meter_id;
         flow_pulse_queue[flow_pulse_q_tail].pulse_total = pulse_total;
+
         flow_pulse_q_tail = (flow_pulse_q_tail + 1) % FLOW_PULSE_QUEUE_SIZE;
         flow_pulse_q_count++;
-    } else {
-        /* queue full -> drop oldest or drop new one. Choose drop-new for simplicity. */
-        /* optional: maintain an overflow counter to report back via telemetry later */
-        /* e.g. flow_pulse_overflow_count++; */
     }
 
     __enable_irq();
 }
 
-void Comms_SendFlowmeterPulseDebug(uint32_t ts, uint32_t pulse_total)
+void Comms_SendFlowmeterPulseDebug(uint32_t ts,
+                                   uint8_t meter_id,
+                                   uint32_t pulse_total)
 {
-    uint8_t payload[9];
+    uint8_t payload[10];
+
     write_u32_le(&payload[0], ts);
     payload[4] = (uint8_t)StateMachine_GetState();
-    write_u32_le(&payload[5], pulse_total);
-    CommsProtocol_Send(MSG_FLOWMETER_PULSE_DEBUG, seq_counter++, payload, sizeof(payload));
+    payload[5] = meter_id;
+    write_u32_le(&payload[6], pulse_total);
+
+    CommsProtocol_Send(MSG_FLOWMETER_PULSE_DEBUG,
+                       seq_counter++,
+                       payload,
+                       sizeof(payload));
 }
 
 /* Drain queue and send events (non-ISR) */
@@ -626,8 +646,9 @@ static void Comms_DrainFlowPulseQueue(void)
     /* Drain until empty */
     while (flow_pulse_q_count > 0) {
         /* read head atomically (single-byte reads are atomic on Cortex-M) */
-        uint32_t ts = flow_pulse_queue[flow_pulse_q_head].ts;
-        uint32_t total = flow_pulse_queue[flow_pulse_q_head].pulse_total;
+    	uint32_t ts = flow_pulse_queue[flow_pulse_q_head].ts;
+    	uint8_t  meter_id = flow_pulse_queue[flow_pulse_q_head].meter_id;
+    	uint32_t total = flow_pulse_queue[flow_pulse_q_head].pulse_total;
 
         /* advance head in a short critical section */
         __disable_irq();
@@ -636,6 +657,6 @@ static void Comms_DrainFlowPulseQueue(void)
         __enable_irq();
 
         /* Now send the packet (non-ISR) */
-        Comms_SendFlowmeterPulseDebug(ts, total);
+        Comms_SendFlowmeterPulseDebug(ts, meter_id, total);
     }
 }

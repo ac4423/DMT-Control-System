@@ -100,3 +100,9 @@ void Update_Solenoid_State(void);
 void GenerateSawWaveDebug(void);
 
 #endif
+
+/* ================= Coolant Loop Flowmeter ================= */
+
+uint32_t FlowMeter2_GetFlow_mLmin(void); // these functions need to be written and implemented
+uint32_t FlowMeter2_GetTotal_mL(void);
+uint32_t FlowMeter2_GetPulseTotal(void);

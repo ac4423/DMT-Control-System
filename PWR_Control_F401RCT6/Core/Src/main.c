@@ -122,7 +122,6 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM5_Init();
-  MX_USART6_UART_Init();
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
   MX_TIM1_Init();
@@ -236,6 +235,9 @@ void SystemClock_Config(void)
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM5 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
         FlowMeter_PulseCallback(); // call the function directly from the ISR for better real-time timestamping.
+
+        if (htim->Instance == TIM5 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+                FlowMeter_PulseCallback(); // call the function directly from the ISR for better real-time timestamping.
     }
 }
 
