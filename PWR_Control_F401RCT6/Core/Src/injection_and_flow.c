@@ -559,7 +559,7 @@ extern volatile uint16_t flow2_window_ms;           /* ms window for instantaneo
 extern volatile uint32_t flow2_pulses_per_litre;    /* pulses per litre for meter 2 */
 
 /* (optional) ticks cached */
-extern volatile uint32_t flowmeter2_window_ticks;
+// extern volatile uint32_t flowmeter2_window_ticks;
 
 /**
  * Call on every pulse from secondary flowmeter (TIMx IC interrupt)

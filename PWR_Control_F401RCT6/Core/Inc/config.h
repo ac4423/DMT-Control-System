@@ -14,7 +14,7 @@
  * (Content preserved from original.)
  */
 
-#define SKIP_STARTUP_SEQUENCE 0
+#define SKIP_STARTUP_SEQUENCE 1
 #define DEFAULT_USB_SERIAL_DEBUG      0
 #define DEFAULT_SERIAL_SEND_MS  200    // default period (ms)
 #define DEFAULT_PWM_DEBUG 0
@@ -206,6 +206,13 @@ int Config_ApplyTag(uint8_t tag, const void *payload, size_t len);
 
 #define DEFAULT_FLOW2_WINDOW_MS 200   /* ms; tune as needed */
 #define DEFAULT_FLOW2_PULSES_PER_LITRE 450  /* example; set to real sensor spec */
+
+/* Derived ticks for secondary flowmeter (in TIM6 ticks or same timebase) */
+extern uint32_t flowmeter2_window_ticks; /* derived ticks for secondary (MS_TO_TICKS(flow2_window_ms)) */
+
+/* runtime-configurable flow/pump params (secondary meter) */
+extern volatile uint16_t flow2_window_ms;         /* ms window for instantaneous calc, secondary */
+extern volatile uint32_t flow2_pulses_per_litre;  /* pulses per litre, secondary */
 
 #endif // CONFIG_H
 

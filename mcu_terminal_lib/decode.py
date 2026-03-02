@@ -69,14 +69,37 @@ def decode_and_show(pkt: dict, ui):
                 desc += f" HB_CTR={ctr}"
 
         elif msg_type == MSG_TELEMETRY_PUSH:
-            if len(payload) >= 13:
+            # New telemetry format (always 21 bytes):
+            # [ts:u32][state:u8][flow1:u32][total1:u32][flow2:u32][total2:u32]
+            if len(payload) >= 21:
                 ts = u32_from_le(payload[0:4])
                 st = payload[4]
-                flow = u32_from_le(payload[5:9])
-                total = u32_from_le(payload[9:13])
+
+                flow1 = u32_from_le(payload[5:9])
+                total1 = u32_from_le(payload[9:13])
+
+                flow2 = u32_from_le(payload[13:17])
+                total2 = u32_from_le(payload[17:21])
 
                 ui.update_state(st)
-                desc += f" TS={ts} STATE={STATE_NAMES.get(st, st)} FLOW={flow}mL/min TOTAL={total}mL"
+
+                desc += (
+                    f" TS={ts} STATE={STATE_NAMES.get(st, st)} "
+                    f"FLOW1={flow1}mL/min TOTAL1={total1}mL "
+                    f"FLOW2={flow2}mL/min TOTAL2={total2}mL"
+                )
+
+                # Optional: call UI helper to update secondary flow display/storage
+                # (non-fatal if the UI doesn't implement it)
+                if hasattr(ui, "update_secondary_flow"):
+                    try:
+                        ui.update_secondary_flow(flow2, total2)
+                    except Exception:
+                        logger.exception("ui.update_secondary_flow failed")
+
+            else:
+                desc += " (malformed telemetry)"
+
         elif msg_type == MSG_FLOWMETER_PULSE_DEBUG:
             # payload expected: 9 bytes: [ts:u32][state:u8][pulse_total:u32]
             if len(payload) >= 9:

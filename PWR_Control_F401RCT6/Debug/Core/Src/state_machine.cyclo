@@ -1,4 +1,4 @@
-../Core/Src/state_machine.c:26:6:RunStartupSequence	11
+../Core/Src/state_machine.c:26:6:RunStartupSequence	2
 ../Core/Src/state_machine.c:87:6:StateMachine_Init	1
 ../Core/Src/state_machine.c:97:12:StateMachine_GetState	1
 ../Core/Src/state_machine.c:101:9:StateMachine_GetStartupStep	1
@@ -7,4 +7,4 @@
 ../Core/Src/state_machine.c:123:6:StateMachine_EnterDebug	2
 ../Core/Src/state_machine.c:131:6:StateMachine_ExitDebug	2
 ../Core/Src/state_machine.c:150:6:StateMachine_ProcessTick	19
-../Core/Src/state_machine.c:241:6:StateMachine_EnterPairing	1
+../Core/Src/state_machine.c:250:6:StateMachine_EnterPairing	1

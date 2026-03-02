@@ -103,6 +103,22 @@ void GenerateSawWaveDebug(void);
 
 /* ================= Coolant Loop Flowmeter ================= */
 
-uint32_t FlowMeter2_GetFlow_mLmin(void); // these functions need to be written and implemented
+// injection_and_flow.h (additions)
+
+/* Secondary flowmeter API and state (mirror primary) */
+extern volatile FlowState_t Flow_State2;
+
+/* Initialize second flowmeter state - called from InjectionAndFlow_Init() */
+void FlowMeter2_Init(void);
+
+/* ISR callback to be called by TIM IC handler for meter 2 */
+void FlowMeter2_PulseCallback(void);
+
+/* Instantaneous & total updates (called from StateMachine tick) */
+void FlowMeter2_UpdateInstantaneous(void);
+void FlowMeter2_UpdateTotal(void);
+
+/* Accessors */
+uint32_t FlowMeter2_GetFlow_mLmin(void);
 uint32_t FlowMeter2_GetTotal_mL(void);
 uint32_t FlowMeter2_GetPulseTotal(void);

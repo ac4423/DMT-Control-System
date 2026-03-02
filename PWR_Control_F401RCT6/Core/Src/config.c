@@ -88,6 +88,16 @@ void flags_init(void) {
     /* Pump control */
     pi_control_enabled = DEFAULT_ENABLE_PI_CONTROL;
 	lookup_table_enabled = DEFAULT_ENABLE_LOOKUP_TABLE;
+
+    /* Secondary flowmeter defaults */
+    flow2_window_ms = DEFAULT_FLOW2_WINDOW_MS;
+    flow2_pulses_per_litre = DEFAULT_FLOW2_PULSES_PER_LITRE;
+
+    /* compute derived tick thresholds from ms */
+    flowmeter_window_ticks = MS_TO_TICKS(flow_window_ms);
+    flowmeter2_window_ticks = MS_TO_TICKS(flow2_window_ms);   /* <- NEW */
+    serial_send_ticks_threshold = MS_TO_TICKS(serial_send_ms);
+    pump_ticks_threshold = MS_TO_TICKS(pump_sample_time_ms);
 }
 
 /*
@@ -124,7 +134,11 @@ static const ConfigTagInfo_t TLV_TagTable[] = {
     { CONFIG_TAG_PUMP_SAMPLE_TIME_MS,     "pump_sample_time_ms",    2, "uint16_t (ms)" },
 
     { CONFIG_TAG_PUMP_SAMPLE_TIME_MS,     "pump_sample_time_ms",    2, "uint16_t (ms)" },
-    { CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, "flowmeter_pulse_send_debug_enabled", 1, "uint8_t (0/1)" } /* <-- new */
+    { CONFIG_TAG_FLOWMETER_PULSE_SEND_DEBUG, "flowmeter_pulse_send_debug_enabled", 1, "uint8_t (0/1)" }, /* <-- new */
+
+    /* in TLV_TagTable (append) */
+    // { CONFIG_TAG_FLOW2_WINDOW_MS,        "flow2_window_ms",         2, "uint16_t (ms)" },
+    // { CONFIG_TAG_FLOW2_PULSES_PER_LITRE, "flow2_pulses_per_litre",  4, "uint32_t" },
 };
 
 static const size_t TLV_TagTableCount = sizeof(TLV_TagTable) / sizeof(TLV_TagTable[0]);
@@ -133,3 +147,14 @@ const ConfigTagInfo_t *Config_GetTagTable(size_t *out_count) {
     if (out_count) *out_count = TLV_TagTableCount;
     return TLV_TagTable;
 }
+
+/* ---------- flowmeter2 runtime variables ------------ */
+
+/* config.c - add near other runtime flow/pump params */
+
+/* Secondary flowmeter runtime params (defaults) */
+volatile uint16_t flow2_window_ms = DEFAULT_FLOW2_WINDOW_MS;
+volatile uint32_t flow2_pulses_per_litre = DEFAULT_FLOW2_PULSES_PER_LITRE;
+
+/* Derived tick thresholds (in TIM6 ticks or your chosen tickbase) */
+uint32_t flowmeter2_window_ticks = MS_TO_TICKS(DEFAULT_FLOW2_WINDOW_MS);
