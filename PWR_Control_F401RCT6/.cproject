@@ -78,8 +78,8 @@
 					</folderInfo>
 					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.1396113842.1998348246" name="comms_legacy.h" rcbsApplicability="disable" resourcePath="Core/Inc/comms_legacy.h" toolsToInvoke=""/>
 					<sourceEntries>
-						<entry excluding="Inc/comms_legacy.h|Src/comms_legacy.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry excluding="CMSIS" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry excluding="Inc/comms_legacy.h|Src/comms_legacy.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

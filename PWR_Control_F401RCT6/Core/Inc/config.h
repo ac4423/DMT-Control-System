@@ -14,7 +14,7 @@
  * (Content preserved from original.)
  */
 
-#define SKIP_STARTUP_SEQUENCE 1
+#define SKIP_STARTUP_SEQUENCE 0
 #define DEFAULT_USB_SERIAL_DEBUG      0
 #define DEFAULT_SERIAL_SEND_MS  200    // default period (ms)
 #define DEFAULT_PWM_DEBUG 0
