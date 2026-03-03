@@ -1,19 +1,19 @@
 # MCU Control Suite — README
 
 ## Contents
-- [Project layout (important files & folders)](#project-layout-important-files-folders)
+- [Project layout (important files & folders)](#project-layout-important-files--folders)
 - [Quickstart](#quickstart)
-  - [1 — Create & activate a venv](#1---create-activate-a-venv)
-  - [2 — Install dependencies](#2---install-dependencies)
-- [Applications — how to run & what they do](#applications---how-to-run-what-they-do)
-  - [A. `mcu_terminal.py` — developer serial terminal (CLI + minimal UI)](#a-mcu_terminalpy--developer-serial-terminal-cli-minimal-ui)
+  - [1 — Create & activate a venv](#1--create--activate-a-venv)
+  - [2 — Install dependencies](#2--install-dependencies)
+- [Applications — how to run & what they do](#applications--how-to-run--what-they-do)
+  - [A. `mcu_terminal.py` — developer serial terminal (CLI + minimal UI)](#a-mcu_terminalpy--quick-start--full-reference)
   - [B. `GUI.py` — control GUI (Qt/PySide or similar)](#b-guipy--control-gui-qtpyside-or-similar)
   - [C. `test_manager.py` — automated/manual test harness](#c-test_managerpy--automatedmanual-test-harness)
   - [D. `comms_echo_emulator.py` (Linux only)](#d-commsechoemulatorpy-linux-only)
-- [Firmware — `PWR_Control_F401RCT6` Overview, Architecture & Runtime Reference](#firmware--pwr_control_f401rct6-overview-architecture-runtime-reference)
-  - [Key firmware modules](#key-firmware-modules)
-  - [State transitions & important behaviors](#state-transitions-important-behaviors)
-  - [Telemetry, heartbeat, ACK/NACK, CRC](#telemetry-heartbeat-acknack-crc)
+- [Firmware — `PWR_Control_F401RCT6` Overview, Architecture & Runtime Reference](#firmware--pwr_control_f401rct6-architecture--runtime-reference)
+  - [Key firmware modules](#firmware-modules--responsibilities)
+  - [State transitions & important behaviors](#state-machine--authoritative-rules)
+  - [Telemetry, heartbeat, ACK/NACK, CRC](#communication-frame-format-crc-sequence)
 - [Firmware — `PWR_Control_F401RCT6` - Module reference](#firmware--pwr_control_f401rct6-module-reference)
 - [Authors & Project Info](#authors--project-info)
 
