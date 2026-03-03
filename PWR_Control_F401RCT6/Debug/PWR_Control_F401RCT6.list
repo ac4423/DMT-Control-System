@@ -27,25 +27,25 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  0000d244  2**0
                   CONTENTS, READONLY
- 12 .debug_info   00013a46  00000000  00000000  0000d274  2**0
+ 12 .debug_info   00013a3a  00000000  00000000  0000d274  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 0000379f  00000000  00000000  00020cba  2**0
+ 13 .debug_abbrev 0000379f  00000000  00000000  00020cae  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_aranges 00001128  00000000  00000000  00024460  2**3
+ 14 .debug_aranges 00001128  00000000  00000000  00024450  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_rnglists 00000dc4  00000000  00000000  00025588  2**0
+ 15 .debug_rnglists 00000dc4  00000000  00000000  00025578  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  00019907  00000000  00000000  0002634c  2**0
+ 16 .debug_macro  00019907  00000000  00000000  0002633c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0001766c  00000000  00000000  0003fc53  2**0
+ 17 .debug_line   0001766c  00000000  00000000  0003fc43  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    00091904  00000000  00000000  000572bf  2**0
+ 18 .debug_str    00091904  00000000  00000000  000572af  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000e8bc3  2**0
+ 19 .comment      00000043  00000000  00000000  000e8bb3  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  0000543c  00000000  00000000  000e8c08  2**2
+ 20 .debug_frame  0000543c  00000000  00000000  000e8bf8  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 00000077  00000000  00000000  000ee044  2**0
+ 21 .debug_line_str 00000077  00000000  00000000  000ee034  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -4856,11 +4856,11 @@ void InjectionAndFlow_Init(void)
  800282e:	4b57      	ldr	r3, [pc, #348]	@ (800298c <InjectionAndFlow_Init+0x194>)
  8002830:	2200      	movs	r2, #0
  8002832:	601a      	str	r2, [r3, #0]
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);  // Ensure PWM = 0 (timer3)
+    __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0);  // Ensure PWM = 0 (timer5)
  8002834:	4b56      	ldr	r3, [pc, #344]	@ (8002990 <InjectionAndFlow_Init+0x198>)
  8002836:	681b      	ldr	r3, [r3, #0]
  8002838:	2200      	movs	r2, #0
- 800283a:	635a      	str	r2, [r3, #52]	@ 0x34
+ 800283a:	639a      	str	r2, [r3, #56]	@ 0x38
     Pump_Control.pump_flag = 0;
  800283c:	4b53      	ldr	r3, [pc, #332]	@ (800298c <InjectionAndFlow_Init+0x194>)
  800283e:	2200      	movs	r2, #0
@@ -5063,7 +5063,7 @@ void InjectionAndFlow_Init(void)
  8002986:	bd80      	pop	{r7, pc}
  8002988:	200003ec 	.word	0x200003ec
  800298c:	20006374 	.word	0x20006374
- 8002990:	200066a8 	.word	0x200066a8
+ 8002990:	200066f0 	.word	0x200066f0
  8002994:	3d4ccccd 	.word	0x3d4ccccd
  8002998:	40020400 	.word	0x40020400
  800299c:	200033b0 	.word	0x200033b0
@@ -6803,8 +6803,8 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
  8003604:	4819      	ldr	r0, [pc, #100]	@ (800366c <main+0x90>)
  8003606:	f002 fd1f 	bl	8006048 <HAL_TIM_Base_Start_IT>
-	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1); // start TIM5 for PWM for injection pump
- 800360a:	2100      	movs	r1, #0
+	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2); // start TIM5 for PWM for injection pump
+ 800360a:	2104      	movs	r1, #4
  800360c:	4818      	ldr	r0, [pc, #96]	@ (8003670 <main+0x94>)
  800360e:	f002 fdd7 	bl	80061c0 <HAL_TIM_PWM_Start>
 	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); // start TIM1-CH1 for flowmeter input capture.

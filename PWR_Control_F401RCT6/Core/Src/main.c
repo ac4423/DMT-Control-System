@@ -128,7 +128,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
-	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1); // start TIM5 for PWM for injection pump
+	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2); // start TIM5 for PWM for injection pump
 	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); // start TIM1-CH1 for flowmeter input capture.
 	/* in main(), after existing starts: */
 	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1); // start TIM3-CH1 input-capture for second flowmeter

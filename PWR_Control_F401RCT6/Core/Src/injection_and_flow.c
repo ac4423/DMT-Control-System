@@ -35,7 +35,7 @@ void InjectionAndFlow_Init(void)
     Flow_State.total_ml = 0;
 
     Pump_Control.duty_pump = 0;
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);  // Ensure PWM = 0 (timer3)
+    __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0);  // Ensure PWM = 0 (timer5)
     Pump_Control.pump_flag = 0;
     Pump_Control.pump_counter = 0;
 
