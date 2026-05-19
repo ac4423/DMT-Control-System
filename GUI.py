@@ -92,7 +92,7 @@ class MainWindow(QMainWindow):
         self.video_label.setStyleSheet("background-color: black; border: 2px solid #00FF00;")
         left_layout.addWidget(self.video_label)
 
-        self.btn_snap = QPushButton("SNAP PHOTO")
+        self.btn_snap = QPushButton("SNAP FRAME")
         self.btn_snap.clicked.connect(self.action_snap_image)
         left_layout.addWidget(self.btn_snap)
 
@@ -359,9 +359,17 @@ class MainWindow(QMainWindow):
         if not self.camera_connected:
             print("Cannot snap - no camera.")
             return
-        height_mm = f"{self.spin_target.value():.2f}"
-        self.camera_manager.capture_image(motor_height=height_mm, folder=self.scans_dir)
-        print(f"Manual snap saved (height={height_mm} mm)")
+        if not self.scan_active:
+            self.btn_snap.setText("Start a scan first!")
+            QTimer.singleShot(2000, lambda: self.btn_snap.setText("SNAP FRAME"))
+            return  
+        frame, ts = self.camera_manager.get_frame()
+        if frame is None:
+            print("Snap failed — no frame available.")
+            return
+        height_mm = self.spin_target.value()
+        self.scan_writer.write_frame(frame, height_mm=height_mm, timestamp=ts)
+        print(f"Manual frame written to scan at height={height_mm:.2f} mm, ts={ts:.3f}")
 
     # ── Scan (HDF5 continuous capture) ───────────────────────────────────
 

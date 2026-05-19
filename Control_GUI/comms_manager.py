@@ -130,7 +130,7 @@ class CommsManager(QObject):
                 print(f"CommsManager: connected via MCUComm on {self.port} @ {self.baud}")
                 return
             except Exception as e:
-                print(f"CommsManager: MCUComm init failed, trying legacy serial: {e}")
+                print(f"CommsManager: MCU not found on {self.port}, trying legacy serial...")
                 self.mcu = None
 
         # ── Try legacy raw serial + CommsListener (fallback) ──────────────
@@ -142,7 +142,7 @@ class CommsManager(QObject):
             self._fallback_listener.start()
             return
         except serial.SerialException as e:
-            print(f"CommsManager: legacy serial also failed: {e}")
+            print(f"CommsManager: no serial device on {self.port}.")
             self._ser = None
 
         # ── Camera-only mode ───────────────────────────────────────────────

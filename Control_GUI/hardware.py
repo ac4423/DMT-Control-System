@@ -14,10 +14,12 @@ import time
 import random
 import threading
 import datetime
-
+import logging
+logging.getLogger("zwoasi").setLevel(logging.ERROR)
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex
-
+logging.disable(logging.WARNING)  # add this just before `import zwoasi`
+logging.disable(logging.NOTSET)   # re-enable immediately after
 # ── Optional imports — graceful degradation if libraries missing ──────────────
 try:
     import zwoasi as asi
@@ -287,27 +289,6 @@ class ZWOCameraManager:
             print(f"ZWOCameraManager: get_frame error: {e}")
             return None, time.time()
 
-    def capture_image(self, motor_height: str = "0.00", folder: str = "."):
-        """
-        Save a single JPEG snapshot with timestamp and height in the filename.
-        Used by the manual SNAP PHOTO button.
-        """
-        frame, ts = self.get_frame()
-        if frame is None:
-            print("ZWOCameraManager: capture_image — no frame available.")
-            return None
-
-        import cv2
-        ts_str   = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        filename = f"snap_{ts_str}_z{motor_height}mm.jpg"
-        filepath = os.path.join(folder, filename)
-        try:
-            cv2.imwrite(filepath, frame)
-            print(f"ZWOCameraManager: saved snap -> {filepath}")
-            return filepath
-        except Exception as e:
-            print(f"ZWOCameraManager: capture_image write error: {e}")
-            return None
 
     def close_camera(self):
         if self._camera is not None:
