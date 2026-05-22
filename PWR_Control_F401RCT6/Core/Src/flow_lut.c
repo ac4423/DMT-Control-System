@@ -65,7 +65,7 @@ void FlowLUT_AutoTune(void)
         {break;}; // safety guard
 
         Pump_Control.duty_pump = duty;
-        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty);
+        __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, duty);
 
         /* Wait for stabilization */
         HAL_Delay(CAL_STABILIZE_MS);

@@ -140,7 +140,7 @@ void StateMachine_ExitDebug(void)
         solenoid_test_enabled = 0;
 
         /* restore safe PWM compare to zero to be defensive */
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+        __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, 0);
 
         cur_state = SYS_RUNNING_PI;
     }

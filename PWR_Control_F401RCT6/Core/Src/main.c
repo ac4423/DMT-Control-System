@@ -127,11 +127,10 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-	HAL_TIM_Base_Start_IT(&htim2); // start SYSTEM_TICK system clock
-	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2); // start TIM5 for PWM for injection pump
-	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); // start TIM1-CH1 for flowmeter input capture.
-	/* in main(), after existing starts: */
-	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2); // start TIM3-CH1 input-capture for second flowmeter
+	HAL_TIM_Base_Start_IT(&htim3); // TIM3: 100 us system tick (SYSTEM_TICK)
+	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2); // TIM5-CH2: injection pump PWM
+	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); // TIM1-CH1: secondary flowmeter (PA8)
+	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2); // TIM2-CH2: primary flowmeter (PB3)
 //	
 //	// Custom Init functions:
 	InjectionAndFlow_Init();
@@ -248,11 +247,6 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     	}
     //*/
 
-	/*
-    if (htim->Instance == TIM3 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-		FlowMeter_PulseCallback(); // call the function directly from the ISR for better real-time timestamping.
-    }
-    */
 }
 
 /* inside HAL_TIM_PeriodElapsedCallback */
@@ -260,7 +254,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM3) {
         /* increment the system tick (single timebase used for timestamps) */
-    	SYSTEM_TICK++;  // <-- IMPORTANT: TIM2/TIM6 comment mismatch — this is your system tick increment
+    	SYSTEM_TICK++;
 
         #if RECORD_PULSE_TIMESTAMPS
             FlowMeter_TickHook();

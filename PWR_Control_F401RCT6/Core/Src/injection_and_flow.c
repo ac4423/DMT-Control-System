@@ -126,7 +126,7 @@ void FlowMeter_TickHook(void)
 #endif
 
 /**
- * Call on every pulse (TIM3 IC interrupt)
+ * Call on every pulse (TIM2 CH2 input capture)
  */
 void FlowMeter_PulseCallback(void)
 {
