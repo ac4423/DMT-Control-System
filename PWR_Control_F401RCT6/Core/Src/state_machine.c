@@ -5,6 +5,7 @@
 #include "main.h"
 #include "tim.h"
 #include "mks42d.h"
+#include "motor_control.h"
 
 volatile SysState_t cur_state = SYS_STARTUP_SEQUENCE;
 
