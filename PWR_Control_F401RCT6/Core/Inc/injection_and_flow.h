@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include "config.h"
 
-#define SOLENOID_GPIO_PORT GPIOB
-#define SOLENOID_GPIO_PIN  GPIO_PIN_12
+#define SOLENOID_GPIO_PORT GPIOC
+#define SOLENOID_GPIO_PIN  GPIO_PIN_14
 
 typedef struct
 {

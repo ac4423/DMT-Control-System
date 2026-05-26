@@ -459,7 +459,7 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
                 manual_pwm_enabled = 1;
 
                 /* set timer compare immediately; injection_and_flow uses same timer */
-                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, Pump_Control.duty_pump);
+                __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, Pump_Control.duty_pump);
 
                 /* If we were running, transition to SYS_DEBUG; if already in SYS_DEBUG, do nothing */
                 if (st == SYS_RUNNING_PI) {

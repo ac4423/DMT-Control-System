@@ -558,7 +558,7 @@ void Comms_Process(void)
                                 manual_pwm_enabled = 1;
 
                                 /* set timer compare immediately; injection_and_flow uses same timer */
-                                __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, manual_pwm_duty);
+                                __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_2, manual_pwm_duty);
 
                                 /* Enter SYS_DEBUG (state machine enforces allowed transitions) */
                                 StateMachine_EnterDebug();

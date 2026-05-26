@@ -14,7 +14,7 @@
  * (Content preserved from original.)
  */
 
-#define SKIP_STARTUP_SEQUENCE 1
+#define SKIP_STARTUP_SEQUENCE 0
 #define DEFAULT_USB_SERIAL_DEBUG      0
 #define DEFAULT_SERIAL_SEND_MS  200    // default period (ms)
 #define DEFAULT_PWM_DEBUG 0
@@ -40,16 +40,17 @@
  * Timing helpers & conversion
  * ----------------------------------------------------------------------
  *
- * TIM6 tick period in microseconds: the ISR will increment tim6_tick
- * every TIM6_TICK_uS.
+ * TIM3 tick period in microseconds: TIM3 update ISR increments SYSTEM_TICK
+ * every SYSTEM_TICK_PERIOD_uS.
  */
 
 #define DEFAULT_HANDSHAKE_TIMEOUT 30000 // ms
 
-#define TIM6_TICK_uS  100   // microseconds
+#define SYSTEM_TICK_PERIOD_uS  100U   /* TIM3: 16 MHz / (15+1) / (99+1) = 10 kHz */
+#define TIM6_TICK_uS  SYSTEM_TICK_PERIOD_uS  /* legacy alias */
 
-/* Helper to convert ms -> ticks (TIM6 ticks) */
-#define MS_TO_TICKS(ms)   ((uint32_t)(((ms) * 1000U) / TIM6_TICK_uS))
+/* Helper to convert ms -> SYSTEM_TICK ticks */
+#define MS_TO_TICKS(ms)   ((uint32_t)(((ms) * 1000U) / SYSTEM_TICK_PERIOD_uS))
 
 /*
  * ----------------------------------------------------------------------
@@ -205,9 +206,9 @@ int Config_ApplyTag(uint8_t tag, const void *payload, size_t len);
 /* ----------------- flowmeter 2 --------------- */
 
 #define DEFAULT_FLOW2_WINDOW_MS 200   /* ms; tune as needed */
-#define DEFAULT_FLOW2_PULSES_PER_LITRE 450  /* example; set to real sensor spec */ // <<< -----------------------------------------------------
+#define DEFAULT_FLOW2_PULSES_PER_LITRE 28  /* example; set to real sensor spec */ // <<< -----------------------------------------------------
 
-/* Derived ticks for secondary flowmeter (in TIM6 ticks or same timebase) */
+/* Derived ticks for secondary flowmeter (SYSTEM_TICK timebase) */
 extern uint32_t flowmeter2_window_ticks; /* derived ticks for secondary (MS_TO_TICKS(flow2_window_ms)) */
 
 /* runtime-configurable flow/pump params (secondary meter) */
