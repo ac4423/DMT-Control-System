@@ -61,6 +61,10 @@ static inline void write_u32_le(uint8_t *buf, uint32_t v) {
     buf[3] = (uint8_t)((v >> 24) & 0xFF);
 }
 
+static inline void write_i32_le(uint8_t *buf, int32_t v) {
+    write_u32_le(buf, (uint32_t)v);
+}
+
 static inline uint32_t read_u32_le(const uint8_t *buf) {
     return (uint32_t)buf[0] | ((uint32_t)buf[1] << 8) | ((uint32_t)buf[2] << 16) | ((uint32_t)buf[3] << 24);
 }
@@ -288,7 +292,7 @@ void Comms_SendNack(uint8_t seq) {
 
 void Comms_SendTelemetry(void)
 {
-    uint8_t payload[21];
+    uint8_t payload[25];
 
     uint32_t ts = SYSTEM_TICK;
     uint8_t state = (uint8_t)StateMachine_GetState();
@@ -307,6 +311,7 @@ void Comms_SendTelemetry(void)
 
     write_u32_le(&payload[13], flow2);
     write_u32_le(&payload[17], total2);
+    write_i32_le(&payload[21], stepper_pos);
 
     CommsProtocol_Send(MSG_TELEMETRY_PUSH, seq_counter++, payload, sizeof(payload));
 }

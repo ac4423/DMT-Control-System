@@ -9,15 +9,16 @@ Classes:
   CaptureThread        — background thread that pulls frames and writes to ScanWriter
 """
 
+import csv
+import json
 import os
 import time
-import random
 import threading
 import datetime
 import logging
 logging.getLogger("zwoasi").setLevel(logging.ERROR)
 import numpy as np
-from PyQt6.QtCore import QThread, pyqtSignal, QMutex
+from PyQt6.QtCore import QThread, pyqtSignal
 logging.disable(logging.WARNING)  # add this just before `import zwoasi`
 logging.disable(logging.NOTSET)   # re-enable immediately after
 # ── Optional imports — graceful degradation if libraries missing ──────────────
@@ -45,160 +46,6 @@ UNITS_PER_MM       = 1638.4
 MIN_ENCODER_VAL    = int(10  * UNITS_PER_MM)
 MAX_ENCODER_VAL    = int(140 * UNITS_PER_MM)
 MIDDLE_ENCODER_VAL = int(75  * UNITS_PER_MM)
-
-WAVE_VELOCITY = (MAX_ENCODER_VAL - MIN_ENCODER_VAL) / 1.0
-JOG_VELOCITY  = WAVE_VELOCITY * 0.5
-
-# Sensor defaults
-PUMP_MID         = 500
-PUMP_NOISE       = 50
-FLOW_INJ_MID     = 1250
-FLOW_INJ_NOISE   = 125
-FLOW_MAIN_DEFAULT = 2500
-FLOW_MAIN_NOISE  = 250
-
-# Timing
-PHYSICS_TICK_MS = 1
-GUI_FPS         = 30
-
-# Motor states
-STATE_HOLD        = 0
-STATE_LINEAR_MOVE = 1
-STATE_WAVE_RUN    = 2
-MOTOR_NOISE_RANGE = 15
-
-
-class DataGeneratorThread(QThread):
-    """
-    Simulates motor, pump, and flowmeter data at PHYSICS_TICK_MS resolution,
-    batching results and emitting at GUI_FPS for smooth plotting.
-    Used automatically when no real MCU comms are available.
-    """
-    data_generated = pyqtSignal(list, list, list, list, list)
-
-    def __init__(self):
-        super().__init__()
-        self.is_running = True
-        self.mutex = QMutex()
-
-        self.start_time        = 0.0
-        self.last_physics_time = 0.0
-
-        # Motor state
-        self.motor_val      = float(MIN_ENCODER_VAL)
-        self.motor_target   = float(MIN_ENCODER_VAL)
-        self.mode           = STATE_HOLD
-        self.wave_direction = 1
-
-        # Flow state
-        self.flow_setpoint          = float(FLOW_MAIN_DEFAULT)
-        self.pending_flow_setpoint  = None
-        self.flow_delay_expiry      = 0.0
-
-    def set_command(self, command, value=None, extra=None):
-        self.mutex.lock()
-        try:
-            if command == "HOME":
-                self.mode         = STATE_LINEAR_MOVE
-                self.motor_target = MIN_ENCODER_VAL
-
-            elif command == "MIDDLE":
-                self.mode         = STATE_LINEAR_MOVE
-                self.motor_target = MIDDLE_ENCODER_VAL
-
-            elif command == "MOVE_TO":
-                if value is not None:
-                    self.mode         = STATE_LINEAR_MOVE
-                    target_encoder    = value * UNITS_PER_MM
-                    self.motor_target = max(0, min(target_encoder, 150 * UNITS_PER_MM))
-
-            elif command == "SET_FLOW_IMMEDIATE":
-                if value is not None:
-                    self.flow_setpoint = value * 60.0
-
-            elif command == "SET_FLOW_DELAYED":
-                if value is not None and extra is not None:
-                    self.pending_flow_setpoint = value * 60.0
-                    self.flow_delay_expiry     = time.perf_counter() + (extra / 1000.0)
-
-            elif command == "RUN_DYNAMIC":
-                self.mode           = STATE_WAVE_RUN
-                self.wave_direction = 1
-
-            elif command == "STOP":
-                self.mode                  = STATE_HOLD
-                self.motor_target          = self.motor_val
-                self.pending_flow_setpoint = None
-        finally:
-            self.mutex.unlock()
-
-    def run(self):
-        self.start_time        = time.perf_counter()
-        self.last_physics_time = self.start_time
-        last_gui_update        = self.start_time
-
-        buf_time, buf_motor, buf_inj, buf_main, buf_pump = [], [], [], [], []
-
-        while self.is_running:
-            current_time           = time.perf_counter()
-            dt                     = current_time - self.last_physics_time
-            self.last_physics_time = current_time
-            elapsed                = current_time - self.start_time
-
-            self.mutex.lock()
-            try:
-                # Delayed flow
-                if self.pending_flow_setpoint is not None:
-                    if current_time >= self.flow_delay_expiry:
-                        self.flow_setpoint         = self.pending_flow_setpoint
-                        self.pending_flow_setpoint = None
-
-                # Motor physics
-                if self.mode == STATE_LINEAR_MOVE:
-                    step = JOG_VELOCITY * dt
-                    diff = self.motor_target - self.motor_val
-                    if abs(diff) <= step:
-                        self.motor_val = self.motor_target
-                        self.mode      = STATE_HOLD
-                    else:
-                        self.motor_val += step * (1 if diff > 0 else -1)
-
-                elif self.mode == STATE_WAVE_RUN:
-                    self.motor_val += WAVE_VELOCITY * dt * self.wave_direction
-                    if self.motor_val >= MAX_ENCODER_VAL:
-                        self.motor_val      = MAX_ENCODER_VAL
-                        self.wave_direction = -1
-                    elif self.motor_val <= MIN_ENCODER_VAL:
-                        self.motor_val      = MIN_ENCODER_VAL
-                        self.wave_direction = 1
-
-                flow_setpoint_snap = self.flow_setpoint
-                motor_snap         = self.motor_val
-            finally:
-                self.mutex.unlock()
-
-            # Sensor noise
-            val_pump      = PUMP_MID      + random.uniform(-PUMP_NOISE,      PUMP_NOISE)
-            val_flow_inj  = FLOW_INJ_MID  + random.uniform(-FLOW_INJ_NOISE,  FLOW_INJ_NOISE)
-            val_flow_main = max(0, flow_setpoint_snap + random.uniform(-FLOW_MAIN_NOISE, FLOW_MAIN_NOISE))
-            noisy_motor   = int(motor_snap + random.randint(-MOTOR_NOISE_RANGE, MOTOR_NOISE_RANGE))
-
-            buf_time.append(elapsed)
-            buf_motor.append(noisy_motor)
-            buf_inj.append(val_flow_inj)
-            buf_main.append(val_flow_main)
-            buf_pump.append(val_pump)
-
-            if (current_time - last_gui_update) >= (1.0 / GUI_FPS):
-                self.data_generated.emit(buf_time, buf_motor, buf_inj, buf_main, buf_pump)
-                buf_time, buf_motor, buf_inj, buf_main, buf_pump = [], [], [], [], []
-                last_gui_update = current_time
-
-            self.msleep(PHYSICS_TICK_MS)
-
-    def stop(self):
-        self.is_running = False
-        self.wait()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -306,6 +153,103 @@ class ZWOCameraManager:
 # ScanWriter — HDF5 session writer
 # ══════════════════════════════════════════════════════════════════════════════
 
+class ProgramSession:
+    """Manage one timestamped program folder and its CSV telemetry log."""
+
+    def __init__(self, root_dir: str):
+        self.root_dir = root_dir
+        self.session_dir = None
+        self.frames_dir = None
+        self.csv_path = None
+        self.meta_path = None
+        self.t0_perf = None
+        self.t0_wall = None
+        self.is_active = False
+        self._csv_file = None
+        self._writer = None
+        os.makedirs(self.root_dir, exist_ok=True)
+
+    def start(self) -> str:
+        if self.is_active:
+            return self.session_dir
+
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.session_dir = os.path.join(self.root_dir, f"program_{stamp}")
+        self.frames_dir = os.path.join(self.session_dir, "frames")
+        os.makedirs(self.frames_dir, exist_ok=True)
+
+        self.csv_path = os.path.join(self.session_dir, "telemetry.csv")
+        self.meta_path = os.path.join(self.session_dir, "metadata.json")
+        self.t0_perf = time.perf_counter()
+        self.t0_wall = time.time()
+        self._csv_file = open(self.csv_path, "w", newline="", encoding="utf-8")
+        self._writer = csv.DictWriter(
+            self._csv_file,
+            fieldnames=[
+                "time_s", "wall_time", "motor_mm", "motor_steps",
+                "flow_inj_ml_min", "flow_main_ml_min", "pump_rpm", "mcu_state",
+            ],
+        )
+        self._writer.writeheader()
+        self.is_active = True
+        return self.session_dir
+
+    def elapsed_s(self) -> float:
+        if self.t0_perf is None:
+            return 0.0
+        return time.perf_counter() - self.t0_perf
+
+    def log_sample(
+        self,
+        motor_mm: float,
+        motor_steps: int = 0,
+        flow_inj_ml_min: float = 0.0,
+        flow_main_ml_min: float = 0.0,
+        pump_rpm: float = 0.0,
+        mcu_state: int = 0,
+        time_s: float | None = None,
+    ):
+        if not self.is_active or self._writer is None:
+            return
+        if time_s is None:
+            time_s = self.elapsed_s()
+        self._writer.writerow({
+            "time_s": float(time_s),
+            "wall_time": time.time(),
+            "motor_mm": float(motor_mm),
+            "motor_steps": int(motor_steps),
+            "flow_inj_ml_min": float(flow_inj_ml_min),
+            "flow_main_ml_min": float(flow_main_ml_min),
+            "pump_rpm": float(pump_rpm),
+            "mcu_state": int(mcu_state),
+        })
+
+    def stop(self, frame_count: int = 0):
+        if self._csv_file is not None:
+            try:
+                self._csv_file.flush()
+                self._csv_file.close()
+            finally:
+                self._csv_file = None
+                self._writer = None
+
+        if self.session_dir:
+            meta = {
+                "session_dir": self.session_dir,
+                "started_wall_time": self.t0_wall,
+                "duration_s": self.elapsed_s(),
+                "frame_count": int(frame_count),
+                "telemetry_csv": self.csv_path,
+            }
+            try:
+                with open(self.meta_path, "w", encoding="utf-8") as f:
+                    json.dump(meta, f, indent=2)
+            except Exception as e:
+                print(f"ProgramSession: metadata write error: {e}")
+
+        self.is_active = False
+
+
 class ScanWriter:
     """
     Writes captured frames into an HDF5 file as an appendable dataset.
@@ -324,17 +268,21 @@ class ScanWriter:
         self._file    = None
         self._ds_frames = None
         self._ds_ts     = None
+        self._ds_time_s = None
         self._ds_heights = None
         self._count   = 0
         self.is_open  = False
 
-    def open_session(self) -> str:
+    def open_session(self, output_dir: str | None = None, session_label: str = "scan") -> str:
         """Open a new HDF5 file for this scan session. Returns the file path."""
         if not _H5PY_AVAILABLE:
             print("ScanWriter: h5py not installed — scan writing disabled.")
             return ""
+        if output_dir is not None:
+            self._dir = output_dir
+        os.makedirs(self._dir, exist_ok=True)
         ts_str   = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = os.path.join(self._dir, f"scan_{ts_str}.h5")
+        filepath = os.path.join(self._dir, f"{session_label}_{ts_str}.h5")
         try:
             self._file = h5py.File(filepath, "w")
             self._ds_frames = self._file.create_dataset(
@@ -347,6 +295,8 @@ class ScanWriter:
             )
             self._ds_ts = self._file.create_dataset(
                 "timestamps", shape=(0,), maxshape=(None,), dtype=np.float64)
+            self._ds_time_s = self._file.create_dataset(
+                "time_s", shape=(0,), maxshape=(None,), dtype=np.float64)
             self._ds_heights = self._file.create_dataset(
                 "heights_mm",  shape=(0,), maxshape=(None,), dtype=np.float32)
             self._file.attrs["session_start"] = ts_str
@@ -361,7 +311,13 @@ class ScanWriter:
             self.is_open = False
             return ""
 
-    def write_frame(self, frame: np.ndarray, height_mm: float, timestamp: float = None):
+    def write_frame(
+        self,
+        frame: np.ndarray,
+        height_mm: float,
+        timestamp: float = None,
+        time_s: float | None = None,
+    ):
         """Append one frame to the open session."""
         if not self.is_open or self._file is None:
             return
@@ -371,6 +327,7 @@ class ScanWriter:
             n = self._count + 1
             self._ds_frames.resize((n, self._frame_h, self._frame_w))
             self._ds_ts.resize((n,))
+            self._ds_time_s.resize((n,))
             self._ds_heights.resize((n,))
 
             # Resize frame if needed
@@ -385,6 +342,7 @@ class ScanWriter:
 
             self._ds_frames[self._count]  = frame
             self._ds_ts[self._count]      = timestamp
+            self._ds_time_s[self._count]  = np.nan if time_s is None else float(time_s)
             self._ds_heights[self._count] = height_mm
             self._count += 1
         except Exception as e:
@@ -419,12 +377,20 @@ class CaptureThread(QThread):
     frame_captured = pyqtSignal(int, float)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, camera: ZWOCameraManager, writer: ScanWriter):
+    def __init__(
+        self,
+        camera: ZWOCameraManager,
+        writer: ScanWriter,
+        get_height_mm=None,
+        get_time_s=None,
+    ):
         super().__init__()
         self._camera     = camera
         self._writer     = writer
         self._active     = False
         self._height_mm  = 0.0
+        self._get_height_mm = get_height_mm
+        self._get_time_s = get_time_s
         self._lock       = threading.Lock()
 
     def set_height(self, height_mm: float):
@@ -449,10 +415,14 @@ class CaptureThread(QThread):
                     self.msleep(10)
                     continue
 
-                with self._lock:
-                    h = self._height_mm
+                if self._get_height_mm is not None:
+                    h = float(self._get_height_mm())
+                else:
+                    with self._lock:
+                        h = self._height_mm
+                t_s = self._get_time_s() if self._get_time_s is not None else None
 
-                self._writer.write_frame(frame, height_mm=h, timestamp=ts)
+                self._writer.write_frame(frame, height_mm=h, timestamp=ts, time_s=t_s)
                 self.frame_captured.emit(index, h)
                 index += 1
 

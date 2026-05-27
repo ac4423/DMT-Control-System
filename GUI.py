@@ -1,35 +1,55 @@
-import sys
-import os
-import time
 import argparse
+import os
+import sys
+import time
 
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
-                             QPushButton, QHBoxLayout, QGroupBox, QDoubleSpinBox,
-                             QSpinBox, QLabel, QGridLayout, QScrollArea, QFrame)
+import cv2
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
-import cv2
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDoubleSpinBox,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 
-from Control_GUI.hardware import DataGeneratorThread, ZWOCameraManager, ScanWriter, CaptureThread
-from Control_GUI.displays import DashboardWidget
-from Control_GUI.comms_manager import CommsManager
 from Control_GUI import comms_manager as comms_mod
+from Control_GUI.comms_manager import CommsManager
+from Control_GUI.displays import DashboardWidget
+from Control_GUI.hardware import (
+    MAX_ENCODER_VAL,
+    MIN_ENCODER_VAL,
+    UNITS_PER_MM,
+    ZWOCameraManager,
+)
 
 _gui_dir = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_gui_dir, "system_t0.ref"), "w") as f:
+with open(os.path.join(_gui_dir, "system_t0.ref"), "w", encoding="utf-8") as f:
     f.write(str(time.time()))
 
 
 class MainWindow(QMainWindow):
-    STATUS_ON  = ("background-color: #2ecc71; color: black; border-radius: 6px; "
-                  "border: 2px solid white; padding: 5px; font-weight: bold; font-size: 10pt;")
-    STATUS_OFF = ("background-color: #c0392b; color: white; border-radius: 6px; "
-                  "border: 2px solid #555; padding: 5px; font-weight: bold; font-size: 10pt;")
+    STATUS_ON = (
+        "background-color: #2ecc71; color: black; border-radius: 6px; "
+        "border: 2px solid white; padding: 5px; font-weight: bold; font-size: 10pt;"
+    )
+    STATUS_OFF = (
+        "background-color: #c0392b; color: white; border-radius: 6px; "
+        "border: 2px solid #555; padding: 5px; font-weight: bold; font-size: 10pt;"
+    )
 
-    # Pixel Y-range for the laser line overlay on the RPV diagram
-    _LASER_MIN_Y_PX = 240   # y position when height = 0 mm   (bottom of diagram)
-    _LASER_MAX_Y_PX = 10    # y position when height = 150 mm (top of diagram)
-    _LASER_MAX_MM   = 150.0
+    _LASER_MIN_Y_PX = 240
+    _LASER_MAX_Y_PX = 10
+    _LASER_MAX_MM = 150.0
 
     def __init__(self, comms_port: str | None = None):
         super().__init__()
@@ -52,56 +72,40 @@ class MainWindow(QMainWindow):
 
         self.STYLE_BTN_NORMAL = "QPushButton { padding:8px; border-radius:4px; background-color:#34495e; color:white; } QPushButton:pressed { background-color:#2c3e50; }"
         self.STYLE_BTN_ACTION = "QPushButton { padding:8px; border-radius:4px; background-color:#3498db; color:white; font-weight:bold; } QPushButton:pressed { background-color:#1f618d; }"
-        self.STYLE_GREEN  = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#2ecc71; font-weight:bold;"
-        self.STYLE_RED    = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#e74c3c; font-weight:bold;"
+        self.STYLE_GREEN = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#2ecc71; font-weight:bold;"
+        self.STYLE_RED = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#e74c3c; font-weight:bold;"
         self.STYLE_PURPLE = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#9b59b6; font-weight:bold;"
-        self.STYLE_GREY   = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#7f8c8d;"
+        self.STYLE_GREY = "font-size:11pt; padding:12px; border-radius:5px; color:white; background-color:#7f8c8d;"
 
         self.is_running_dynamic = False
-        self.is_running_static  = False
-        self.scan_active        = False
+        self.is_running_static = False
+        self.current_motor_mm = 0.0
+        self._mcu_state = 0
 
-        # ── Hardware init ─────────────────────────────────────────────────
         current_dir = os.path.dirname(os.path.abspath(__file__))
         dll_path = os.path.normpath(os.path.join(current_dir, "Camera", "ASICamera2.dll"))
-        self.camera_manager   = ZWOCameraManager(dll_path)
+        self.camera_manager = ZWOCameraManager(dll_path)
         self.camera_connected = self.camera_manager.open_camera()
-        self.scans_dir = os.path.join(current_dir, "Scans")
-        os.makedirs(self.scans_dir, exist_ok=True)
+        self.programs_dir = os.path.join(current_dir, "Programs")
+        os.makedirs(self.programs_dir, exist_ok=True)
 
-        self.scan_writer    = ScanWriter(self.scans_dir, frame_h=1080, frame_w=1920)
-        self.capture_thread = None
-
-        # ── Layout: LEFT | CENTRE | RIGHT ────────────────────────────────
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
         main_layout.setSpacing(8)
 
-        # ── LEFT panel ────────────────────────────────────────────────────
         left_widget = QWidget()
         left_widget.setFixedWidth(660)
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(4, 4, 4, 4)
         left_layout.setSpacing(6)
 
-        # Camera feed
         self.video_label = QLabel("Camera Feed")
         self.video_label.setFixedSize(640, 400)
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setStyleSheet("background-color: black; border: 2px solid #00FF00;")
         left_layout.addWidget(self.video_label)
 
-        self.btn_snap = QPushButton("SNAP FRAME")
-        self.btn_snap.clicked.connect(self.action_snap_image)
-        left_layout.addWidget(self.btn_snap)
-
-        self.lbl_frame_count = QLabel("Frames: 0")
-        self.lbl_frame_count.setStyleSheet("color: #00FF00; font-size: 10pt;")
-        self.lbl_frame_count.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        left_layout.addWidget(self.lbl_frame_count)
-
-        # Status indicators
         status_row = QHBoxLayout()
         self.lbl_laser = QLabel("LASERS: OFF")
         self.lbl_laser.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -113,8 +117,6 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.lbl_valve)
         left_layout.addLayout(status_row)
 
-        # RPV diagram — fills remaining space in the left panel
-        # rpv_container uses a real layout so nothing escapes it.
         self.rpv_container = QWidget()
         self.rpv_container.setStyleSheet("background-color: #000; border: 2px solid #555;")
         rpv_layout = QVBoxLayout(self.rpv_container)
@@ -124,29 +126,33 @@ class MainWindow(QMainWindow):
         self.lbl_rpv = QLabel()
         self.lbl_rpv.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        rpv_paths = [os.path.join("Control_GUI", "assets", "RPV_Diagram.png"),
-                     os.path.join(current_dir, "RPV_Diagram.png")]
+        rpv_paths = [
+            os.path.join(current_dir, "Control_GUI", "assets", "RPV_Diagram.png"),
+            os.path.join(current_dir, "RPV_Diagram.png"),
+        ]
         rpv_pixmap = QPixmap()
         rpv_loaded = False
-        for p in rpv_paths:
-            if os.path.exists(p):
-                rpv_pixmap.load(p)
+        for path in rpv_paths:
+            if os.path.exists(path):
+                rpv_pixmap.load(path)
                 rpv_loaded = True
                 break
 
         if rpv_loaded:
-            self.lbl_rpv.setPixmap(rpv_pixmap.scaled(
-                636, 260,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation))
+            self.lbl_rpv.setPixmap(
+                rpv_pixmap.scaled(
+                    636,
+                    260,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
         else:
             self.lbl_rpv.setText("RPV_Diagram.png not found")
             self.lbl_rpv.setStyleSheet("color: red;")
 
         rpv_layout.addWidget(self.lbl_rpv)
 
-        # Laser line overlay — child of rpv_container so it floats over the image.
-        # Initial position at the bottom (height = 0 mm).
         self.laser_line = QFrame(self.rpv_container)
         self.laser_line.setFixedHeight(3)
         self.laser_line.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -157,18 +163,16 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.rpv_container)
         main_layout.addWidget(left_widget)
 
-        # ── CENTRE panel: graphs only ─────────────────────────────────────
         self.dashboard = DashboardWidget()
         main_layout.addWidget(self.dashboard, stretch=2)
 
-        # ── RIGHT panel: scrollable controls ─────────────────────────────
         right_contents = QWidget()
         right_layout = QVBoxLayout(right_contents)
         right_layout.setContentsMargins(4, 12, 4, 4)
         right_layout.setSpacing(8)
         self.create_stepper_group(right_layout)
         self.create_flow_group(right_layout)
-        self.create_scan_group(right_layout)
+        self.create_program_group(right_layout)
         right_layout.addStretch()
         self.create_run_group(right_layout)
 
@@ -180,26 +184,21 @@ class MainWindow(QMainWindow):
         right_scroll.setStyleSheet(
             "QScrollArea { border: none; background-color: #000000; }"
             "QScrollBar:vertical { background: #111; width: 8px; }"
-            "QScrollBar::handle:vertical { background: #00FF00; border-radius: 4px; }")
+            "QScrollBar::handle:vertical { background: #00FF00; border-radius: 4px; }"
+        )
         main_layout.addWidget(right_scroll)
 
-        # ── Comms ─────────────────────────────────────────────────────────
-        if comms_port:
-            self.comms = CommsManager(port=comms_port)
-        else:
-            self.comms = CommsManager()
+        self.comms = CommsManager(port=comms_port) if comms_port else CommsManager()
         self.comms.telemetry_data.connect(self._handle_telemetry)
-        self.comms.telemetry_data.connect(self._on_telemetry_packet)
+        self.comms.link_alive.connect(self._on_mcu_link_alive)
+        self.comms.heartbeat_data.connect(self._on_heartbeat)
+        self.comms.handshake_status.connect(self._on_handshake_status)
+        self.comms.tx_status.connect(self._on_tx_status)
+        self._handshake_text = "Handshake: sent, waiting for ACK"
+        self._heartbeat_text = "Heartbeat: none"
+        self._tx_text = "TX: idle"
+        self._update_mcu_status_label()
 
-        # ── Simulation data generator (only runs when no real comms) ──────
-        self.generator = DataGeneratorThread()
-        self.generator.data_generated.connect(self._on_batch_plots)
-        has_real_comms = (getattr(self.comms, "mcu", None) is not None or
-                          getattr(self.comms, "_ser", None) is not None)
-        if not has_real_comms:
-            self.generator.start()
-
-        # ── Video timer ───────────────────────────────────────────────────
         if self.camera_connected:
             self.video_timer = QTimer()
             self.video_timer.timeout.connect(self.update_frame)
@@ -207,26 +206,64 @@ class MainWindow(QMainWindow):
         else:
             self.video_label.setText("No Camera Connected")
 
-    # ── Laser line ────────────────────────────────────────────────────────
+    def _on_mcu_link_alive(self, alive: bool):
+        self._update_mcu_status_label()
+
+    def _on_heartbeat(self, ts: int, state: int, startup_step: int, counter: int):
+        self._heartbeat_text = f"Heartbeat: #{counter} state={state} startup_step={startup_step}"
+        self._update_mcu_status_label()
+
+    def _on_handshake_status(self, ok: bool, detail: str):
+        self._handshake_text = f"Handshake: {'ACK' if ok else 'not ACKed'} ({detail})"
+        self._update_mcu_status_label()
+
+    def _on_tx_status(self, text: str):
+        self._tx_text = text
+        self._update_mcu_status_label()
+
+    def _update_mcu_status_label(self):
+        port = getattr(self.comms, "port", "?")
+        if getattr(self.comms, "camera_only", False):
+            self.lbl_program_status.setText(
+                f"MCU: not connected on {port}\n"
+                "Check COM port, cable, and that no terminal already has it open"
+            )
+            self.lbl_program_status.setStyleSheet("color: #e74c3c; font-size: 9pt;")
+            return
+
+        details = f"{self._handshake_text}\n{self._heartbeat_text}\n{self._tx_text}"
+        if getattr(self.comms, "telemetry_seen", False):
+            self.lbl_program_status.setText(f"MCU: {port} - receiving telemetry\n{details}")
+            self.lbl_program_status.setStyleSheet("color: #2ecc71; font-size: 9pt;")
+        elif getattr(self.comms, "heartbeat_seen", False):
+            self.lbl_program_status.setText(f"MCU: {port} - heartbeat OK, waiting for telemetry\n{details}")
+            self.lbl_program_status.setStyleSheet("color: #f39c12; font-size: 9pt;")
+        elif getattr(self.comms, "mcu", None) or getattr(self.comms, "_ser", None):
+            self.lbl_program_status.setText(
+                f"MCU: {port} - port open, waiting for telemetry\n"
+                f"{details}\nCheck USB-UART wiring / firmware / TX LED on adapter"
+            )
+            self.lbl_program_status.setStyleSheet("color: #f39c12; font-size: 9pt;")
+        else:
+            self.lbl_program_status.setText("MCU: idle")
+            self.lbl_program_status.setStyleSheet("color: #00FF00; font-size: 9pt;")
 
     def _update_laser_line(self, height_mm: float):
-        """Move the laser line on the RPV diagram to reflect the current motor height."""
         clamped = max(0.0, min(float(height_mm), self._LASER_MAX_MM))
         y = self._LASER_MIN_Y_PX - (clamped / self._LASER_MAX_MM) * (
-            self._LASER_MIN_Y_PX - self._LASER_MAX_Y_PX)
-        # Width spans the inner width of rpv_container minus a small margin
+            self._LASER_MIN_Y_PX - self._LASER_MAX_Y_PX
+        )
         w = self.rpv_container.width() - 20
         self.laser_line.setGeometry(10, int(y), max(w, 10), 3)
         self.laser_line.raise_()
-
-    # ── Status indicators ─────────────────────────────────────────────────
 
     def update_status(self, lasers_on: bool, valve_on: bool):
         if lasers_on:
             self.lbl_laser.setText("LASERS: ON")
             self.lbl_laser.setStyleSheet(self.STATUS_ON)
             self.laser_line.setStyleSheet(
-                "background-color: #ff0000; border: 1px solid #ff9999; border-radius: 2px;")
+                "background-color: #ff0000; border: 1px solid #ff9999; border-radius: 2px;"
+            )
         else:
             self.lbl_laser.setText("LASERS: OFF")
             self.lbl_laser.setStyleSheet(self.STATUS_OFF)
@@ -238,8 +275,6 @@ class MainWindow(QMainWindow):
         else:
             self.lbl_valve.setText("INJECTION VALVE: OFF")
             self.lbl_valve.setStyleSheet(self.STATUS_OFF)
-
-    # ── UI builders ───────────────────────────────────────────────────────
 
     def create_stepper_group(self, layout):
         grp = QGroupBox("Stepper Motor Control")
@@ -258,18 +293,19 @@ class MainWindow(QMainWindow):
         self.btn_set_pos.setFixedWidth(60)
         self.btn_set_pos.setStyleSheet(self.STYLE_BTN_ACTION)
         self.btn_set_pos.clicked.connect(self.action_set_position)
-        g.addWidget(self.btn_home,      0, 0, 1, 2)
-        g.addWidget(self.btn_middle,    0, 2, 1, 2)
+        g.addWidget(self.btn_home, 0, 0, 1, 2)
+        g.addWidget(self.btn_middle, 0, 2, 1, 2)
         g.addWidget(QLabel("Set Pos:"), 1, 0)
-        g.addWidget(self.spin_target,   1, 1)
-        g.addWidget(QLabel("mm"),       1, 2)
-        g.addWidget(self.btn_set_pos,   1, 3)
+        g.addWidget(self.spin_target, 1, 1)
+        g.addWidget(QLabel("mm"), 1, 2)
+        g.addWidget(self.btn_set_pos, 1, 3)
         grp.setLayout(g)
         layout.addWidget(grp)
 
     def create_flow_group(self, layout):
         grp = QGroupBox("Flow Control")
         v = QVBoxLayout()
+
         sub_curr = QGroupBox("Current Set Flow")
         cl = QGridLayout()
         self.spin_flow_immediate = QDoubleSpinBox()
@@ -280,12 +316,13 @@ class MainWindow(QMainWindow):
         self.btn_set_flow.setFixedWidth(60)
         self.btn_set_flow.setStyleSheet(self.STYLE_BTN_ACTION)
         self.btn_set_flow.clicked.connect(self.action_set_flow_immediate)
-        cl.addWidget(QLabel("Set Rate:"),       0, 0)
-        cl.addWidget(self.spin_flow_immediate,  0, 1)
-        cl.addWidget(QLabel("mL/s"),            0, 2)
-        cl.addWidget(self.btn_set_flow,         0, 3)
+        cl.addWidget(QLabel("Set Rate:"), 0, 0)
+        cl.addWidget(self.spin_flow_immediate, 0, 1)
+        cl.addWidget(QLabel("mL/s"), 0, 2)
+        cl.addWidget(self.btn_set_flow, 0, 3)
         sub_curr.setLayout(cl)
         v.addWidget(sub_curr)
+
         sub_del = QGroupBox("Delay Set Flow")
         dl = QGridLayout()
         self.spin_flow_delayed = QDoubleSpinBox()
@@ -298,30 +335,29 @@ class MainWindow(QMainWindow):
         self.btn_set_delay = QPushButton("Set")
         self.btn_set_delay.setStyleSheet(self.STYLE_BTN_ACTION)
         self.btn_set_delay.clicked.connect(self.action_set_flow_delayed)
-        dl.addWidget(QLabel("Set Rate:"),      0, 0)
-        dl.addWidget(self.spin_flow_delayed,   0, 1)
-        dl.addWidget(QLabel("mL/s"),           0, 2)
-        dl.addWidget(QLabel("Set Delay:"),     1, 0)
-        dl.addWidget(self.spin_delay_ms,       1, 1)
-        dl.addWidget(QLabel("ms"),             1, 2)
-        dl.addWidget(self.btn_set_delay,       2, 0, 1, 3)
+        dl.addWidget(QLabel("Set Rate:"), 0, 0)
+        dl.addWidget(self.spin_flow_delayed, 0, 1)
+        dl.addWidget(QLabel("mL/s"), 0, 2)
+        dl.addWidget(QLabel("Set Delay:"), 1, 0)
+        dl.addWidget(self.spin_delay_ms, 1, 1)
+        dl.addWidget(QLabel("ms"), 1, 2)
+        dl.addWidget(self.btn_set_delay, 2, 0, 1, 3)
         sub_del.setLayout(dl)
         v.addWidget(sub_del)
+
         grp.setLayout(v)
         layout.addWidget(grp)
 
-    def create_scan_group(self, layout):
-        grp = QGroupBox("Scan Controls")
+    def create_program_group(self, layout):
+        grp = QGroupBox("Program Controls")
         v = QVBoxLayout()
-        self.btn_start_scan = QPushButton("START SCAN")
-        self.btn_start_scan.clicked.connect(self.action_start_scan)
-        self.btn_stop_scan = QPushButton("STOP SCAN")
-        self.btn_stop_scan.clicked.connect(self.action_stop_scan)
-        self.btn_open_scans = QPushButton("OPEN SCANS FOLDER")
-        self.btn_open_scans.clicked.connect(self.open_gallery)
-        v.addWidget(self.btn_start_scan)
-        v.addWidget(self.btn_stop_scan)
-        v.addWidget(self.btn_open_scans)
+        self.lbl_program_status = QLabel("MCU: idle")
+        self.lbl_program_status.setStyleSheet("color: #00FF00; font-size: 9pt;")
+        self.lbl_program_status.setWordWrap(True)
+        self.btn_open_programs = QPushButton("OPEN PROGRAMS FOLDER")
+        self.btn_open_programs.clicked.connect(self.open_programs_folder)
+        v.addWidget(self.lbl_program_status)
+        v.addWidget(self.btn_open_programs)
         grp.setLayout(v)
         layout.addWidget(grp)
 
@@ -339,8 +375,6 @@ class MainWindow(QMainWindow):
         grp.setLayout(v)
         layout.addWidget(grp)
 
-    # ── Camera ────────────────────────────────────────────────────────────
-
     def update_frame(self):
         try:
             frame, _ = self.camera_manager.get_frame()
@@ -350,173 +384,84 @@ class MainWindow(QMainWindow):
                 qt_img = QImage(rgb.data, w, h, ch * w, QImage.Format.Format_RGB888)
                 self.video_label.setPixmap(
                     QPixmap.fromImage(qt_img).scaled(
-                        self.video_label.width(), self.video_label.height(),
-                        Qt.AspectRatioMode.KeepAspectRatio))
+                        self.video_label.width(),
+                        self.video_label.height(),
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                    )
+                )
         except Exception as e:
             print(f"Video update error: {e}")
 
-    def action_snap_image(self):
-        if not self.camera_connected:
-            print("Cannot snap - no camera.")
-            return
-        if not self.scan_active:
-            self.btn_snap.setText("Start a scan first!")
-            QTimer.singleShot(2000, lambda: self.btn_snap.setText("SNAP FRAME"))
-            return  
-        frame, ts = self.camera_manager.get_frame()
-        if frame is None:
-            print("Snap failed — no frame available.")
-            return
-        height_mm = self.spin_target.value()
-        self.scan_writer.write_frame(frame, height_mm=height_mm, timestamp=ts)
-        print(f"Manual frame written to scan at height={height_mm:.2f} mm, ts={ts:.3f}")
-
-    # ── Scan (HDF5 continuous capture) ───────────────────────────────────
-
-    def action_start_scan(self):
-        if self.scan_active:
-            return
-        if not self.camera_connected:
-            print("Cannot scan - no camera.")
-            return
-        filepath = self.scan_writer.open_session()
-        self.scan_active = True
-        self.lbl_frame_count.setText("Frames: 0")
-        self.btn_start_scan.setText("SCANNING...")
-        self.btn_start_scan.setStyleSheet(self.STYLE_RED)
-        self.capture_thread = CaptureThread(self.camera_manager, self.scan_writer)
-        self.capture_thread.set_height(self.spin_target.value())
-        self.capture_thread.frame_captured.connect(self._on_frame_captured)
-        self.capture_thread.error_occurred.connect(lambda e: print(f"Capture error: {e}"))
-        self.capture_thread.start_capture()
-        print(f"Scan started -> {filepath}")
-
-    def action_stop_scan(self):
-        if not self.scan_active:
-            return
-        self.scan_active = False
-        if self.capture_thread:
-            self.capture_thread.stop_capture()
-            self.capture_thread = None
-        self.scan_writer.close_session()
-        self.btn_start_scan.setText("START SCAN")
-        self.btn_start_scan.setStyleSheet("")
-        print("Scan stopped.")
-
-    def _on_frame_captured(self, index: int, height_mm: float):
-        if index % 10 == 0:
-            self.lbl_frame_count.setText(f"Frames: {index + 1}")
-
-    def open_gallery(self):
-        if os.path.exists(self.scans_dir):
-            os.startfile(self.scans_dir)
-
-    # ── Plot update adapters ──────────────────────────────────────────────
-
-    def _on_batch_plots(self, times, motors, injs, mains, pumps):
-        """Relay batch data to dashboard and update laser line from result."""
-        latest_mm = self.dashboard.update_plots(times, motors, injs, mains, pumps)
-        if latest_mm is not None:
-            self._update_laser_line(latest_mm)
-
-    # ── Telemetry ─────────────────────────────────────────────────────────
+    def open_programs_folder(self):
+        if os.path.exists(self.programs_dir):
+            os.startfile(self.programs_dir)
 
     def _handle_telemetry(self, ts, state, flow1, total1, pos):
-        """Routes real MCU telemetry to the dashboard and laser line."""
         flow2 = 0
+        motor_steps = int(pos)
+        self._mcu_state = int(state)
+
         try:
             mcu = self.comms.get_mcu()
-            if mcu:
-                latest = mcu.get_latest_telemetry()
-                if latest:
-                    flow2 = latest.get("flow2", 0)
+            latest = mcu.get_latest_telemetry() if mcu else None
+            if latest:
+                self._mcu_state = int(latest.get("state", state))
+                flow1 = latest.get("flow1", flow1)
+                flow2 = latest.get("flow2", flow2)
+                motor_steps = int(latest.get("stepper_pos", motor_steps))
         except Exception:
             pass
+
         _t, motor_mm = self.dashboard.add_telemetry_point(
             ts_ms=ts,
-            motor_steps=pos,
+            motor_steps=motor_steps,
             flow1_ml_min=flow1,
             flow2_ml_min=flow2,
-            pump_rpm=0,
         )
+        self.current_motor_mm = motor_mm
         self._update_laser_line(motor_mm)
-
-    def _on_telemetry_packet(self, *args):
-        """Adapter for unit conversion — forwards flow rates to dashboard."""
-        primary_ml_per_min   = None
-        secondary_ml_per_min = None
-        ts = None
-        if len(args) == 5:
-            ts                 = args[0]
-            primary_ml_per_min = args[2]
-        elif len(args) == 1 and isinstance(args[0], dict):
-            pkt                  = args[0]
-            ts                   = pkt.get("ts")
-            primary_ml_per_min   = pkt.get("flow1") or pkt.get("flow")
-            secondary_ml_per_min = pkt.get("flow2")
-        try:
-            mcu = self.comms.get_mcu()
-            if mcu is not None:
-                latest = mcu.get_latest_telemetry()
-                if latest:
-                    if secondary_ml_per_min is None:
-                        secondary_ml_per_min = latest.get("flow2")
-                    if primary_ml_per_min is None:
-                        primary_ml_per_min   = latest.get("flow1")
-        except Exception:
-            pass
-        if primary_ml_per_min is not None:
-            try:
-                self.dashboard.update_flow_rates(
-                    float(primary_ml_per_min) / 60.0,
-                    float(secondary_ml_per_min) / 60.0 if secondary_ml_per_min else None,
-                    timestamp=ts)
-            except AttributeError:
-                pass
-
-    # ── Stepper / flow actions ────────────────────────────────────────────
+        self._update_mcu_status_label()
 
     def _comms_ok(self):
-        return bool(self.comms.mcu or self.comms._ser)
+        return bool(getattr(self.comms, "mcu", None) or getattr(self.comms, "_ser", None))
 
     def action_home(self):
         self.stop_any_run()
-        self.generator.set_command("HOME")
         if self._comms_ok():
             self.comms.send_go_home(slave_addr=0x03)
 
     def action_middle(self):
         self.stop_any_run()
-        self.generator.set_command("MIDDLE")
         if self._comms_ok():
             self.comms.send_set_middle()
 
     def action_set_position(self):
         self.stop_any_run()
         target_mm = self.spin_target.value()
-        self.generator.set_command("MOVE_TO", value=target_mm)
         if self._comms_ok():
-            self.comms.send_move_to((target_mm / 10.0) * 360.0 / 1.8)
-        if self.capture_thread:
-            self.capture_thread.set_height(target_mm)
+            self.comms.send_move_to(CommsManager.mm_to_steps(target_mm))
 
     def action_set_flow_immediate(self):
-        self.generator.set_command("SET_FLOW_IMMEDIATE",
-                                   value=self.spin_flow_immediate.value())
+        if self._comms_ok():
+            ml_per_min = int(self.spin_flow_immediate.value() * 60.0)
+            self.comms.send_desired_flow(ml_per_min, immediate=True)
+            print(f"CommsManager: desired flow {ml_per_min} mL/min (immediate)")
 
     def action_set_flow_delayed(self):
-        self.generator.set_command("SET_FLOW_DELAYED",
-                                   value=self.spin_flow_delayed.value(),
-                                   extra=self.spin_delay_ms.value())
-
-    # ── Experiment controls ───────────────────────────────────────────────
+        if self._comms_ok():
+            ml_per_min = int(self.spin_flow_delayed.value() * 60.0)
+            self.comms.send_desired_flow(ml_per_min, immediate=False)
+            print(f"CommsManager: desired flow {ml_per_min} mL/min (scheduled)")
 
     def action_run_dynamic_toggle(self):
         if self.is_running_static:
             return
         if not self.is_running_dynamic:
             self.is_running_dynamic = True
-            self.generator.set_command("RUN_DYNAMIC")
+            if self._comms_ok():
+                low_mm = MIN_ENCODER_VAL / UNITS_PER_MM
+                high_mm = MAX_ENCODER_VAL / UNITS_PER_MM
+                self.comms.send_stepper_oscillate_start(low_mm=low_mm, high_mm=high_mm)
             self.btn_dynamic.setText("Stop Dynamic")
             self.btn_dynamic.setStyleSheet(self.STYLE_RED)
             self.btn_static.setEnabled(False)
@@ -539,9 +484,11 @@ class MainWindow(QMainWindow):
             self.stop_any_run()
 
     def stop_any_run(self):
+        was_running = self.is_running_dynamic or self.is_running_static
         self.is_running_dynamic = False
-        self.is_running_static  = False
-        self.generator.set_command("STOP")
+        self.is_running_static = False
+        if was_running and self._comms_ok():
+            self.comms.send_stepper_oscillate_stop()
         self.btn_dynamic.setText("Run Dynamic")
         self.btn_dynamic.setStyleSheet(self.STYLE_GREEN)
         self.btn_dynamic.setEnabled(True)
@@ -550,17 +497,11 @@ class MainWindow(QMainWindow):
         self.btn_static.setEnabled(True)
         self.update_status(lasers_on=False, valve_on=False)
 
-    # ── Shutdown ──────────────────────────────────────────────────────────
-
     def closeEvent(self, event):
-        if self.capture_thread:
-            self.capture_thread.stop_capture()
-        if self.scan_writer.is_open:
-            self.scan_writer.close_session()
+        if self.is_running_dynamic or self.is_running_static:
+            self.stop_any_run()
         if hasattr(self, "video_timer"):
             self.video_timer.stop()
-        if hasattr(self, "generator"):
-            self.generator.stop()
         if hasattr(self, "comms") and self.comms:
             self.comms.close()
         if hasattr(self, "camera_manager") and self.camera_manager:
@@ -570,10 +511,13 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="RPV Laser Scanner Control System GUI")
-    parser.add_argument("-p", "--port", default=comms_mod.SERIAL_PORT,
-                        help=f"Serial port (default: {comms_mod.SERIAL_PORT})")
-    parser.add_argument("-b", "--baud", default=None,
-                        help="Optional baud rate override")
+    parser.add_argument(
+        "-p",
+        "--port",
+        default=comms_mod.SERIAL_PORT,
+        help=f"Serial port (default: {comms_mod.SERIAL_PORT})",
+    )
+    parser.add_argument("-b", "--baud", default=None, help="Optional ba ud rate override")
     args = parser.parse_args()
 
     app = QApplication(sys.argv)

@@ -241,7 +241,7 @@ def tag_name_to_tag(name: str) -> int:
 
 # ── Telemetry decoder ─────────────────────────────────────────────────────────
 
-TELEMETRY_LEN = 21  # [ts: u32][state: u8][flow1: u32][total1: u32][flow2: u32][total2: u32]
+TELEMETRY_LEN = 25  # [ts:u32][state:u8][flow1:u32][total1:u32][flow2:u32][total2:u32][stepper_pos:i32]
 
 
 def decode_telemetry(payload: bytes) -> dict:
@@ -256,6 +256,7 @@ def decode_telemetry(payload: bytes) -> dict:
             'total1': int,   # primary total volume (mL)
             'flow2':  int,   # secondary flow rate  (mL/min)
             'total2': int,   # secondary total volume (mL)
+            'stepper_pos': int,  # current stepper position
         }
 
     Raises ValueError if the payload length is wrong.
@@ -271,6 +272,7 @@ def decode_telemetry(payload: bytes) -> dict:
     total1 = u32_from_le(payload[9:13])
     flow2  = u32_from_le(payload[13:17])
     total2 = u32_from_le(payload[17:21])
+    stepper_pos = int.from_bytes(payload[21:25], byteorder="little", signed=True)
 
     return {
         "ts":     ts,
@@ -279,4 +281,5 @@ def decode_telemetry(payload: bytes) -> dict:
         "total1": total1,
         "flow2":  flow2,
         "total2": total2,
+        "stepper_pos": stepper_pos,
     }

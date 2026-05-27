@@ -18,6 +18,7 @@ static uint32_t pairing_enter_tick = 0;
 /* startup internal variables */
 static uint8_t startup_step = 0;
 static uint32_t step_timer_tick = 0;
+static uint32_t motor_status_poll_tick = 0;
 
 extern volatile uint32_t SYSTEM_TICK;
 extern volatile uint16_t telemetry_period_ms;
@@ -42,6 +43,7 @@ void RunStartupSequence(void) {
         case 0:
             goHome(0x03);
             step_timer_tick = now;
+            motor_status_poll_tick = now;
             startup_step = 1;
             break;
         case 1:
@@ -49,6 +51,11 @@ void RunStartupSequence(void) {
                 step_timer_tick = now;
                 startup_step = 2;
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+                break;
+            }
+            if ((now - motor_status_poll_tick) >= MS_TO_TICKS(100)) {
+                readMotorStatusTx(0x03);
+                motor_status_poll_tick = now;
             }
             break;
         case 2:
@@ -56,16 +63,26 @@ void RunStartupSequence(void) {
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
                 setZero(0x03);
                 step_timer_tick = now;
+                motor_status_poll_tick = now;
                 startup_step = 3;
             }
             break;
         case 3:
-            if (readSetZeroAck() == 1) {
+        {
+            uint8_t set_zero_ack = readSetZeroAck();
+            if (set_zero_ack == 1 ||
+                (set_zero_ack == 3 && (now - step_timer_tick) >= MS_TO_TICKS(250))) {
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 1);
                 step_timer_tick = now;
                 startup_step = 4;
+                break;
+            }
+            if ((now - motor_status_poll_tick) >= MS_TO_TICKS(100)) {
+                readMotorStatusTx(0x03);
+                motor_status_poll_tick = now;
             }
             break;
+        }
         case 4:
             if ((now - step_timer_tick) >= MS_TO_TICKS(5000)) {
                 /* Startup finished -> move to PAIRING */
@@ -90,6 +107,7 @@ void StateMachine_Init(void) {
     // FlowSchedule_Clear();
     startup_step = 0;
     step_timer_tick = SYSTEM_TICK;
+    motor_status_poll_tick = SYSTEM_TICK;
     pairing_enter_tick = 0;
     /* ensure safe outputs disabled until configured */
     // e.g. set pump duty = 0; stepper disable here if required

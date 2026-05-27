@@ -59,11 +59,11 @@ uint8_t readGoHomeFinishAck(void)
             success_cnt = 2;
             continue;
         }
-        // State 2: Function Code (91 - GoHome)
+        // State 2: Function Code (91 - GoHome, or F1 - motor status poll)
         if (success_cnt == 2) {
             buffer[2] = temp;
             checksum += temp;
-            if (temp != 0x91) { success_cnt = 0; continue; }
+            if (temp != 0x91 && temp != 0xF1) { success_cnt = 0; continue; }
             success_cnt = 3;
             continue;
         }
@@ -79,15 +79,18 @@ uint8_t readGoHomeFinishAck(void)
             uint8_t receivedChecksum = temp;
             if ((checksum & 0xFF) == receivedChecksum) {
                 uint8_t status = buffer[3];
-                
-                // Status 2: Go home success 
-                if (status == 2) return 1; 
-                
-                // Status 0: Go home fail 
-                if (status == 0) return 2;
 
-                // Status 1: Go home start (Busy) - We ignore this if waiting for finish
-                // and simply reset to look for the next packet.
+                if (buffer[2] == 0x91) {
+                    if (status == 2) return 1;
+                    if (status == 0) return 2;
+                    if (status == 1) return 3;
+                }
+
+                if (buffer[2] == 0xF1) {
+                    if (status == 0) return 2;
+                    if (status == 5) return 3;
+                    return 1;
+                }
             }
             success_cnt = 0;
         }
@@ -136,11 +139,11 @@ uint8_t readSetZeroAck(void)
             success_cnt = 2;
             continue;
         }
-        // State 2: Function Code (92 - Set 0)
+        // State 2: Function Code (92 - Set 0, or F1 - motor status poll)
         if (success_cnt == 2) {
             buffer[2] = temp;
             checksum += temp;
-            if (temp != 0x92) { success_cnt = 0; continue; }
+            if (temp != 0x92 && temp != 0xF1) { success_cnt = 0; continue; }
             success_cnt = 3;
             continue;
         }
@@ -156,15 +159,31 @@ uint8_t readSetZeroAck(void)
             uint8_t receivedChecksum = temp;
             if ((checksum & 0xFF) == receivedChecksum) {
                 uint8_t status = buffer[3];
-                
-                if (status == 1) return 1; 
-                
-                if (status == 0) return 2;
+
+                if (buffer[2] == 0x92) {
+                    if (status == 1) return 1;
+                    if (status == 0) return 2;
+                }
+
+                if (buffer[2] == 0xF1) {
+                    if (status == 0) return 2;
+                    if (status == 5) return 3;
+                    return 3;
+                }
             }
             success_cnt = 0;
         }
     }
     return 0; // Not finished yet
+}
+
+void readMotorStatusTx(uint8_t slaveAddr) {
+    txBuffer[0] = 0xFA;          // Frame header
+    txBuffer[1] = slaveAddr;     // Slave address
+    txBuffer[2] = 0xF1;          // Read motor status
+    txBuffer[3] = getCheckSum(txBuffer, 3);
+
+    UartHAL_Send(MKS_BUS(), txBuffer, 4);
 }
 
 void speedModeRun(uint8_t slaveAddr, uint8_t dir, uint16_t speed, uint8_t acc) {

@@ -2,3 +2,5 @@ pyserial>=3.5
 windows-curses>=2.3.3
 PyQt6
 pyqtgraph
+opencv-python
+h5py

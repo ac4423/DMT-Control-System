@@ -9,6 +9,7 @@ void goHome(uint8_t slaveAddr);
 uint8_t readGoHomeFinishAck(void);
 void setZero(uint8_t slaveAddr);
 uint8_t readSetZeroAck(void);
+void readMotorStatusTx(uint8_t slaveAddr);
 
 void speedModeRun(uint8_t slaveAddr, uint8_t dir, uint16_t speed, uint8_t acc);
 void speedModeStop(uint8_t slaveAddr, uint8_t acc);

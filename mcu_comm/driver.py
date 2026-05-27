@@ -101,7 +101,12 @@ class MCUComm:
     def open(self):
         if self._ser and self._ser.is_open:
             return
-        self._ser = serial.Serial(self.port, self.baud, timeout=self.timeout)
+        self._ser = serial.Serial(
+            self.port,
+            self.baud,
+            timeout=self.timeout,
+            write_timeout=0.2,
+        )
         self._stop_event.clear()
         self._read_thread = threading.Thread(target=self._reader_loop, daemon=True)
         self._read_thread.start()

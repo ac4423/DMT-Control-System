@@ -376,7 +376,7 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 
     /**TIM2 GPIO Configuration
     PB3     ------> TIM2_CH2
-    */
+    */ 
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3);
 
     /* TIM2 interrupt Deinit */
