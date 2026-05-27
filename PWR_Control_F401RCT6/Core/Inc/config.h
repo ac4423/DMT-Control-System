@@ -14,7 +14,7 @@
  * (Content preserved from original.)
  */
 
-#define SKIP_STARTUP_SEQUENCE 0
+#define SKIP_STARTUP_SEQUENCE 1
 #define DEFAULT_USB_SERIAL_DEBUG      0
 #define DEFAULT_SERIAL_SEND_MS  200    // default period (ms)
 #define DEFAULT_PWM_DEBUG 0
@@ -203,10 +203,21 @@ void Config_RecomputeDerivedTicks(void);
 /* helper to apply a config TLV tag payload into runtime config */
 int Config_ApplyTag(uint8_t tag, const void *payload, size_t len);
 
-/* ----------------- flowmeter 2 --------------- */
-
-#define DEFAULT_FLOW2_WINDOW_MS 200   /* ms; tune as needed */
-#define DEFAULT_FLOW2_PULSES_PER_LITRE 28  /* example; set to real sensor spec */ // <<< -----------------------------------------------------
+/* ----------------- flowmeter 2 (main line) -------------------------------
+ * Instantaneous rate uses the same algorithm as meter 1: count pulses whose
+ * timestamps fall within the last flow2_window_ms, require at least two pulses,
+ * then flow ∝ (pulses-1) / (t_last - t_first).
+ *
+ * If the window is too short for the real pulse rate at low flow, you often get
+ * 0 or 1 pulse in the window → reading sticks at 0. If exactly two pulses land
+ * with a very small delta_ms (noise / bounce / tick quantization), frequency
+ * explodes → bogus hundreds of L/min until the next good sample.
+ *
+ * Lengthen flow2_window_ms for smoother low-flow behaviour; set pulses/L to
+ * the *actual* main-line sensor K-factor (repo default 28 is a placeholder).
+ */
+#define DEFAULT_FLOW2_WINDOW_MS 1200U /* ms; wider than meter1 — low pulse rate / large pipe */
+#define DEFAULT_FLOW2_PULSES_PER_LITRE 28U /* MUST match hardware K-factor (pulses per litre) */
 
 /* Derived ticks for secondary flowmeter (SYSTEM_TICK timebase) */
 extern uint32_t flowmeter2_window_ticks; /* derived ticks for secondary (MS_TO_TICKS(flow2_window_ms)) */

@@ -17,8 +17,8 @@
 ../Core/Src/injection_and_flow.c:511:6:Update_Solenoid_State	3
 ../Core/Src/injection_and_flow.c:528:6:GenerateSawWaveDebug	5
 ../Core/Src/injection_and_flow.c:568:6:FlowMeter2_PulseCallback	4
-../Core/Src/injection_and_flow.c:598:6:FlowMeter2_UpdateInstantaneous	15
-../Core/Src/injection_and_flow.c:699:6:FlowMeter2_UpdateTotal	1
-../Core/Src/injection_and_flow.c:705:10:FlowMeter2_GetFlow_mLmin	1
-../Core/Src/injection_and_flow.c:710:10:FlowMeter2_GetTotal_mL	1
-../Core/Src/injection_and_flow.c:715:10:FlowMeter2_GetPulseTotal	1
+../Core/Src/injection_and_flow.c:598:6:FlowMeter2_UpdateInstantaneous	17
+../Core/Src/injection_and_flow.c:707:6:FlowMeter2_UpdateTotal	1
+../Core/Src/injection_and_flow.c:713:10:FlowMeter2_GetFlow_mLmin	1
+../Core/Src/injection_and_flow.c:718:10:FlowMeter2_GetTotal_mL	1
+../Core/Src/injection_and_flow.c:723:10:FlowMeter2_GetPulseTotal	1

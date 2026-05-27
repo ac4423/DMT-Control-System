@@ -678,6 +678,14 @@ void FlowMeter2_UpdateInstantaneous(void)
         return;
     }
 
+    /* Two pulses with an unrealistically short spacing => huge inferred Hz.
+     * At genuine low flow, the first/last pulse in the window are far apart;
+     * spikes (~hundreds L/min) are almost always this pathological case. */
+    if (pulses_in_window == 2U && delta_ms < 15U) {
+        Flow_State2.last_flow_mlmin = 0;
+        return;
+    }
+
     uint32_t ppl = flow2_pulses_per_litre;
     if (ppl == 0) {
         Flow_State2.last_flow_mlmin = 0;

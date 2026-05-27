@@ -28,6 +28,7 @@ from Control_GUI.displays import DashboardWidget
 from Control_GUI.hardware import (
     MAX_ENCODER_VAL,
     MIN_ENCODER_VAL,
+    ProgramSession,
     UNITS_PER_MM,
     ZWOCameraManager,
 )
@@ -88,6 +89,8 @@ class MainWindow(QMainWindow):
         self.camera_connected = self.camera_manager.open_camera()
         self.programs_dir = os.path.join(current_dir, "Programs")
         os.makedirs(self.programs_dir, exist_ok=True)
+        self._telemetry_session = ProgramSession(self.programs_dir)
+        self._recording = False
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -173,6 +176,7 @@ class MainWindow(QMainWindow):
         self.create_stepper_group(right_layout)
         self.create_flow_group(right_layout)
         self.create_program_group(right_layout)
+        self.create_data_recording_group(right_layout)
         right_layout.addStretch()
         self.create_run_group(right_layout)
 
@@ -308,26 +312,27 @@ class MainWindow(QMainWindow):
 
         sub_curr = QGroupBox("Current Set Flow")
         cl = QGridLayout()
-        self.spin_flow_immediate = QDoubleSpinBox()
-        self.spin_flow_immediate.setRange(0.0, 100.0)
-        self.spin_flow_immediate.setValue(41.6)
-        self.spin_flow_immediate.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.spin_flow_immediate = QSpinBox()
+        self.spin_flow_immediate.setRange(0, 3000)
+        self.spin_flow_immediate.setValue(0)
+        self.spin_flow_immediate.setSuffix(" mL/min")
+        self.spin_flow_immediate.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self.btn_set_flow = QPushButton("Set")
         self.btn_set_flow.setFixedWidth(60)
         self.btn_set_flow.setStyleSheet(self.STYLE_BTN_ACTION)
         self.btn_set_flow.clicked.connect(self.action_set_flow_immediate)
         cl.addWidget(QLabel("Set Rate:"), 0, 0)
-        cl.addWidget(self.spin_flow_immediate, 0, 1)
-        cl.addWidget(QLabel("mL/s"), 0, 2)
+        cl.addWidget(self.spin_flow_immediate, 0, 1, 1, 2)
         cl.addWidget(self.btn_set_flow, 0, 3)
         sub_curr.setLayout(cl)
         v.addWidget(sub_curr)
 
-        sub_del = QGroupBox("Delay Set Flow")
+        sub_del = QGroupBox("Scheduled Set Flow")
         dl = QGridLayout()
-        self.spin_flow_delayed = QDoubleSpinBox()
-        self.spin_flow_delayed.setRange(0.0, 100.0)
-        self.spin_flow_delayed.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.spin_flow_delayed = QSpinBox()
+        self.spin_flow_delayed.setRange(0, 3000)
+        self.spin_flow_delayed.setSuffix(" mL/min")
+        self.spin_flow_delayed.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
         self.spin_delay_ms = QSpinBox()
         self.spin_delay_ms.setRange(0, 10000)
         self.spin_delay_ms.setValue(1000)
@@ -336,8 +341,7 @@ class MainWindow(QMainWindow):
         self.btn_set_delay.setStyleSheet(self.STYLE_BTN_ACTION)
         self.btn_set_delay.clicked.connect(self.action_set_flow_delayed)
         dl.addWidget(QLabel("Set Rate:"), 0, 0)
-        dl.addWidget(self.spin_flow_delayed, 0, 1)
-        dl.addWidget(QLabel("mL/s"), 0, 2)
+        dl.addWidget(self.spin_flow_delayed, 0, 1, 1, 2)
         dl.addWidget(QLabel("Set Delay:"), 1, 0)
         dl.addWidget(self.spin_delay_ms, 1, 1)
         dl.addWidget(QLabel("ms"), 1, 2)
@@ -358,6 +362,30 @@ class MainWindow(QMainWindow):
         self.btn_open_programs.clicked.connect(self.open_programs_folder)
         v.addWidget(self.lbl_program_status)
         v.addWidget(self.btn_open_programs)
+        grp.setLayout(v)
+        layout.addWidget(grp)
+
+    def create_data_recording_group(self, layout):
+        grp = QGroupBox("Data recording")
+        v = QVBoxLayout()
+        self.lbl_recording = QLabel(
+            "Telemetry is not saved to disk unless you start recording.\n"
+            f"Files go under: {self.programs_dir}"
+        )
+        self.lbl_recording.setStyleSheet("color: #aaaaaa; font-size: 8pt;")
+        self.lbl_recording.setWordWrap(True)
+        row = QHBoxLayout()
+        self.btn_rec_start = QPushButton("Start recording")
+        self.btn_rec_start.setStyleSheet(self.STYLE_GREEN)
+        self.btn_rec_start.clicked.connect(self.action_start_recording)
+        self.btn_rec_stop = QPushButton("Stop recording")
+        self.btn_rec_stop.setStyleSheet(self.STYLE_RED)
+        self.btn_rec_stop.setEnabled(False)
+        self.btn_rec_stop.clicked.connect(self.action_stop_recording)
+        row.addWidget(self.btn_rec_start)
+        row.addWidget(self.btn_rec_stop)
+        v.addWidget(self.lbl_recording)
+        v.addLayout(row)
         grp.setLayout(v)
         layout.addWidget(grp)
 
@@ -396,6 +424,33 @@ class MainWindow(QMainWindow):
         if os.path.exists(self.programs_dir):
             os.startfile(self.programs_dir)
 
+    def action_start_recording(self):
+        if self._recording:
+            return
+        session_dir = self._telemetry_session.start()
+        self._recording = True
+        self.btn_rec_start.setEnabled(False)
+        self.btn_rec_stop.setEnabled(True)
+        self.lbl_recording.setText(
+            f"Recording…\n{session_dir}\ntelemetry.csv (one row per MCU telemetry sample)"
+        )
+        self.lbl_recording.setStyleSheet("color: #2ecc71; font-size: 8pt;")
+        print(f"Data recording started: {session_dir}")
+
+    def action_stop_recording(self):
+        if not self._recording:
+            return
+        self._telemetry_session.stop(frame_count=0)
+        self._recording = False
+        self.btn_rec_start.setEnabled(True)
+        self.btn_rec_stop.setEnabled(False)
+        self.lbl_recording.setText(
+            "Recording stopped. Telemetry is not saved until you start again.\n"
+            f"Last / default folder: {self.programs_dir}"
+        )
+        self.lbl_recording.setStyleSheet("color: #aaaaaa; font-size: 8pt;")
+        print("Data recording stopped.")
+
     def _handle_telemetry(self, ts, state, flow1, total1, pos):
         flow2 = 0
         motor_steps = int(pos)
@@ -419,6 +474,15 @@ class MainWindow(QMainWindow):
             flow2_ml_min=flow2,
         )
         self.current_motor_mm = motor_mm
+        if self._recording and self._telemetry_session.is_active:
+            self._telemetry_session.log_sample(
+                motor_mm=motor_mm,
+                motor_steps=motor_steps,
+                flow_inj_ml_min=float(flow1),
+                flow_main_ml_min=float(flow2),
+                pump_rpm=0.0,
+                mcu_state=self._mcu_state,
+            )
         self._update_laser_line(motor_mm)
         self._update_mcu_status_label()
 
@@ -443,13 +507,13 @@ class MainWindow(QMainWindow):
 
     def action_set_flow_immediate(self):
         if self._comms_ok():
-            ml_per_min = int(self.spin_flow_immediate.value() * 60.0)
+            ml_per_min = int(self.spin_flow_immediate.value())
             self.comms.send_desired_flow(ml_per_min, immediate=True)
             print(f"CommsManager: desired flow {ml_per_min} mL/min (immediate)")
 
     def action_set_flow_delayed(self):
         if self._comms_ok():
-            ml_per_min = int(self.spin_flow_delayed.value() * 60.0)
+            ml_per_min = int(self.spin_flow_delayed.value())
             self.comms.send_desired_flow(ml_per_min, immediate=False)
             print(f"CommsManager: desired flow {ml_per_min} mL/min (scheduled)")
 
@@ -498,6 +562,9 @@ class MainWindow(QMainWindow):
         self.update_status(lasers_on=False, valve_on=False)
 
     def closeEvent(self, event):
+        if self._recording:
+            self._telemetry_session.stop(frame_count=0)
+            self._recording = False
         if self.is_running_dynamic or self.is_running_static:
             self.stop_any_run()
         if hasattr(self, "video_timer"):

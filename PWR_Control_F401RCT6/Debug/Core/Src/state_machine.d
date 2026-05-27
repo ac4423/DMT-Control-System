@@ -30,7 +30,7 @@ Core/Src/state_machine.o: ../Core/Src/state_machine.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Core/Inc/config.h ../Core/Inc/main.h ../Core/Inc/tim.h \
- ../Core/Inc/mks42d.h
+ ../Core/Inc/mks42d.h ../Core/Inc/motor_control.h
 ../Core/Inc/state_machine.h:
 ../Core/Inc/config.h:
 ../Core/Inc/injection_and_flow.h:
@@ -67,3 +67,4 @@ Core/Src/state_machine.o: ../Core/Src/state_machine.c \
 ../Core/Inc/main.h:
 ../Core/Inc/tim.h:
 ../Core/Inc/mks42d.h:
+../Core/Inc/motor_control.h:

@@ -223,6 +223,10 @@ class ProgramSession:
             "pump_rpm": float(pump_rpm),
             "mcu_state": int(mcu_state),
         })
+        try:
+            self._csv_file.flush()
+        except Exception:
+            pass
 
     def stop(self, frame_count: int = 0):
         if self._csv_file is not None:
