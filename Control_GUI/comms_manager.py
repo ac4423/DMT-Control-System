@@ -44,6 +44,8 @@ MSG_SET_MIDDLE   = 0x42
 MSG_POSITION_MODE2 = 0x43  # Move-to absolute (steps)
 DEFAULT_HANDSHAKE_HEARTBEAT_MS = 500
 DEFAULT_HANDSHAKE_TELEMETRY_MS = 200
+STEPPER_COMMAND_SCALE_CORRECTION = 30.0
+STEPPER_COMMAND_STEPS_PER_MM = 1638.4 / STEPPER_COMMAND_SCALE_CORRECTION
 
 
 # ---------- Fallback legacy listener ----------
@@ -507,7 +509,7 @@ class CommsManager(QObject):
     # ── Teardown ──────────────────────────────────────────────────────────
     @staticmethod
     def mm_to_steps(mm: float) -> int:
-        return int(round(float(mm) * 1638.4))
+        return int(round(float(mm) * STEPPER_COMMAND_STEPS_PER_MM))
 
     def send_stepper_oscillate_start(self, low_mm: float, high_mm: float):
         self._enqueue_tx(

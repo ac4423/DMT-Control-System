@@ -4,3 +4,4 @@ PyQt6
 pyqtgraph
 opencv-python
 h5py
+hdf5plugin

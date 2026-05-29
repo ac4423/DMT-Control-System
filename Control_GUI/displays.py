@@ -17,7 +17,7 @@ MAIN_FLOW_PLOT_Y_MAX_L_MIN = 100.0  # main meter: full scale in L/min
 _FLOW_READOUT_STYLE = (
     "QLabel { color: #00FF00; background-color: #000000; "
     "font-family: Consolas, 'Courier New', monospace; font-size: 12pt; font-weight: bold; "
-    "min-width: 12em; padding: 6px 10px; border: 1px solid #333; }"
+    "padding: 6px 10px; border: 1px solid #333; }"
 )
 
 
@@ -49,26 +49,39 @@ class DashboardWidget(QWidget):
         super().__init__()
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(12)
         pg.setConfigOptions(antialias=False)
 
         # Motor — full width
+        row_motor = QWidget()
+        h_motor = QHBoxLayout(row_motor)
+        h_motor.setContentsMargins(0, 0, 0, 0)
+        h_motor.setSpacing(8)
+        self.lbl_motor = QLabel("Height\n0.0 mm")
+        self.lbl_motor.setFixedWidth(132)
+        self.lbl_motor.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+        self.lbl_motor.setStyleSheet(_FLOW_READOUT_STYLE)
+        self.lbl_motor.setWordWrap(True)
         self.w_motor = pg.PlotWidget()
         _style_plot_widget(self.w_motor)
         self.p_motor = self.w_motor.getPlotItem()
         self.p_motor.setTitle("Motor Height")
         self.p_motor.setLabel("left", "Height", units="mm")
+        self.p_motor.setLabel("bottom", "Time", units="s")
         self.p_motor.setYRange(0, 150)
         self.curve_motor = self.p_motor.plot(pen=pg.mkPen((0, 255, 255), width=2))
-        layout.addWidget(self.w_motor, stretch=1)
+        h_motor.addWidget(self.lbl_motor)
+        h_motor.addWidget(self.w_motor, stretch=1)
+        layout.addWidget(row_motor, stretch=1)
 
         # Injection flow — readout | chart
         row_inj = QWidget()
         h_inj = QHBoxLayout(row_inj)
         h_inj.setContentsMargins(0, 0, 0, 0)
-        h_inj.setSpacing(6)
-        self.lbl_flow_inj = QLabel("Injection\n— mL/min")
+        h_inj.setSpacing(8)
+        self.lbl_flow_inj = QLabel("Injection\n0 mL/min")
+        self.lbl_flow_inj.setFixedWidth(132)
         self.lbl_flow_inj.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         self.lbl_flow_inj.setStyleSheet(_FLOW_READOUT_STYLE)
         self.lbl_flow_inj.setWordWrap(True)
@@ -77,6 +90,7 @@ class DashboardWidget(QWidget):
         self.p_flow_inj = self.w_flow_inj.getPlotItem()
         self.p_flow_inj.setTitle("Flowmeter Injection")
         _configure_flow_axis(self.p_flow_inj)
+        self.p_flow_inj.setLabel("bottom", "Time", units="s")
         self.p_flow_inj.setYRange(0, FLOW_PLOT_Y_MAX_ML_MIN)
         self.curve_flow_inj = self.p_flow_inj.plot(pen=pg.mkPen((255, 0, 255), width=2))
         h_inj.addWidget(self.lbl_flow_inj)
@@ -87,8 +101,9 @@ class DashboardWidget(QWidget):
         row_main = QWidget()
         h_main = QHBoxLayout(row_main)
         h_main.setContentsMargins(0, 0, 0, 0)
-        h_main.setSpacing(6)
-        self.lbl_flow_main = QLabel("Main\n— L/min")
+        h_main.setSpacing(8)
+        self.lbl_flow_main = QLabel("Main\n0.00 L/min")
+        self.lbl_flow_main.setFixedWidth(132)
         self.lbl_flow_main.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         self.lbl_flow_main.setStyleSheet(_FLOW_READOUT_STYLE)
         self.lbl_flow_main.setWordWrap(True)
@@ -143,6 +158,7 @@ class DashboardWidget(QWidget):
         f1 = float(flow1_ml_min)
         f2_l_min = float(flow2_ml_min) / 1000.0
 
+        self.lbl_motor.setText(f"Height\n{motor_mm:.1f} mm")
         self.lbl_flow_inj.setText(f"Injection\n{f1:,.0f} mL/min")
         self.lbl_flow_main.setText(f"Main\n{f2_l_min:.2f} L/min")
 

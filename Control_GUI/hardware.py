@@ -36,6 +36,13 @@ except ImportError:
     h5py = None
     _H5PY_AVAILABLE = False
 
+try:
+    import hdf5plugin
+    _HDF5PLUGIN_AVAILABLE = True
+except ImportError:
+    hdf5plugin = None
+    _HDF5PLUGIN_AVAILABLE = False
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DataGeneratorThread — simulation / no-hardware mode
@@ -54,11 +61,16 @@ MIDDLE_ENCODER_VAL = int(75  * UNITS_PER_MM)
 
 # Camera settings — adjust to match your ASI camera model
 CAMERA_EXPOSURE_US  = 10000   # 10 ms
-CAMERA_GAIN         = 200
+CAMERA_GAIN         = 150
 CAMERA_WB_R         = 70
 CAMERA_WB_B         = 90
 CAMERA_BANDWIDTH    = 80      # %
+CAMERA_CAPTURE_WIDTH = 1080
+CAMERA_CAPTURE_HEIGHT = 1080
+CAMERA_BINNING      = 1
 CAMERA_IMAGE_TYPE   = None    # set after init from camera caps
+HDF5_FRAME_COMPRESSION = "blosc-lz4"
+HDF5_BLOSC_CLEVEL = 5
 
 
 class ZWOCameraManager:
@@ -109,7 +121,12 @@ class ZWOCameraManager:
             self._camera.set_control_value(asi.ASI_WB_R,       CAMERA_WB_R,        auto=False)
             self._camera.set_control_value(asi.ASI_WB_B,       CAMERA_WB_B,        auto=False)
             self._camera.set_control_value(asi.ASI_FLIP,       0,                  auto=False)
-            self._camera.set_image_type(asi.ASI_IMG_RAW8)
+            self._camera.set_roi_format(
+                CAMERA_CAPTURE_WIDTH,
+                CAMERA_CAPTURE_HEIGHT,
+                CAMERA_BINNING,
+                asi.ASI_IMG_RAW8,
+            )
 
             self._camera.start_video_capture()
             self._connected = True
@@ -265,7 +282,7 @@ class ScanWriter:
         /metadata       — attributes: session_start, frame_h, frame_w
     """
 
-    def __init__(self, output_dir: str, frame_h: int = 1080, frame_w: int = 1920):
+    def __init__(self, output_dir: str, frame_h: int = 1080, frame_w: int = 1080):
         self._dir     = output_dir
         self._frame_h = frame_h
         self._frame_w = frame_w
@@ -276,6 +293,25 @@ class ScanWriter:
         self._ds_heights = None
         self._count   = 0
         self.is_open  = False
+
+    @property
+    def frame_count(self) -> int:
+        return self._count
+
+    def _frame_compression_kwargs(self) -> tuple[dict, str]:
+        if _HDF5PLUGIN_AVAILABLE:
+            return (
+                hdf5plugin.Blosc(
+                    cname="lz4",
+                    clevel=HDF5_BLOSC_CLEVEL,
+                    shuffle=hdf5plugin.Blosc.BITSHUFFLE,
+                ),
+                HDF5_FRAME_COMPRESSION,
+            )
+        return (
+            {"compression": "gzip", "compression_opts": 1},
+            "gzip-1",
+        )
 
     def open_session(self, output_dir: str | None = None, session_label: str = "scan") -> str:
         """Open a new HDF5 file for this scan session. Returns the file path."""
@@ -289,13 +325,14 @@ class ScanWriter:
         filepath = os.path.join(self._dir, f"{session_label}_{ts_str}.h5")
         try:
             self._file = h5py.File(filepath, "w")
+            frame_compression, compression_name = self._frame_compression_kwargs()
             self._ds_frames = self._file.create_dataset(
                 "frames",
                 shape=(0, self._frame_h, self._frame_w),
                 maxshape=(None, self._frame_h, self._frame_w),
                 dtype=np.uint8,
                 chunks=(1, self._frame_h, self._frame_w),
-                compression="gzip", compression_opts=1,
+                **frame_compression,
             )
             self._ds_ts = self._file.create_dataset(
                 "timestamps", shape=(0,), maxshape=(None,), dtype=np.float64)
@@ -306,9 +343,10 @@ class ScanWriter:
             self._file.attrs["session_start"] = ts_str
             self._file.attrs["frame_h"]       = self._frame_h
             self._file.attrs["frame_w"]       = self._frame_w
+            self._file.attrs["frame_compression"] = compression_name
             self._count  = 0
             self.is_open = True
-            print(f"ScanWriter: session opened -> {filepath}")
+            print(f"ScanWriter: session opened -> {filepath} ({compression_name})")
             return filepath
         except Exception as e:
             print(f"ScanWriter: open_session error: {e}")

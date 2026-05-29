@@ -26,9 +26,13 @@ from Control_GUI import comms_manager as comms_mod
 from Control_GUI.comms_manager import CommsManager
 from Control_GUI.displays import DashboardWidget
 from Control_GUI.hardware import (
+    CAMERA_CAPTURE_HEIGHT,
+    CAMERA_CAPTURE_WIDTH,
+    CaptureThread,
     MAX_ENCODER_VAL,
     MIN_ENCODER_VAL,
     ProgramSession,
+    ScanWriter,
     UNITS_PER_MM,
     ZWOCameraManager,
 )
@@ -48,8 +52,8 @@ class MainWindow(QMainWindow):
         "border: 2px solid #555; padding: 5px; font-weight: bold; font-size: 10pt;"
     )
 
-    _LASER_MIN_Y_PX = 240
-    _LASER_MAX_Y_PX = 10
+    _LASER_MIN_Y_PX = 178
+    _LASER_MAX_Y_PX = 8
     _LASER_MAX_MM = 150.0
 
     def __init__(self, comms_port: str | None = None):
@@ -61,9 +65,12 @@ class MainWindow(QMainWindow):
             QMainWindow { background-color: #000000; }
             QWidget     { background-color: #000000; color: #00FF00; }
             QGroupBox   { border: 1px solid #333; border-radius: 5px;
-                          margin-top: 10px; font-weight: bold; color: #00FF00; }
+                          margin-top: 18px; padding-top: 12px;
+                          font-weight: bold; color: #00FF00; }
+            QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left;
+                               left: 10px; padding: 0 6px; }
             QPushButton { background-color: #222; color: #00FF00;
-                          border: 1px solid #00FF00; padding: 10px; }
+                          border: 1px solid #00FF00; padding: 8px; }
             QPushButton:hover    { background-color: #333; }
             QPushButton:disabled { color: #555; border-color: #555; }
             QDoubleSpinBox, QSpinBox { padding: 5px; background-color: #111;
@@ -91,36 +98,34 @@ class MainWindow(QMainWindow):
         os.makedirs(self.programs_dir, exist_ok=True)
         self._telemetry_session = ProgramSession(self.programs_dir)
         self._recording = False
+        self._scan_writer = None
+        self._capture_thread = None
+        self._recording_session_dir = None
+        self._recording_h5_path = ""
+        self._recorded_frame_count = 0
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
-        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(10)
 
         left_widget = QWidget()
-        left_widget.setFixedWidth(660)
+        left_widget.setFixedWidth(560)
         left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(4, 4, 4, 4)
-        left_layout.setSpacing(6)
+        left_layout.setContentsMargins(6, 6, 6, 6)
+        left_layout.setSpacing(8)
 
         self.video_label = QLabel("Camera Feed")
-        self.video_label.setFixedSize(640, 400)
+        self.video_label.setFixedSize(540, 540)
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setStyleSheet("background-color: black; border: 2px solid #00FF00;")
-        left_layout.addWidget(self.video_label)
+        left_layout.addWidget(self.video_label, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-        status_row = QHBoxLayout()
-        self.lbl_laser = QLabel("LASERS: OFF")
-        self.lbl_laser.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_laser.setStyleSheet(self.STATUS_OFF)
-        self.lbl_valve = QLabel("INJECTION VALVE: OFF")
-        self.lbl_valve.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_valve.setStyleSheet(self.STATUS_OFF)
-        status_row.addWidget(self.lbl_laser)
-        status_row.addWidget(self.lbl_valve)
-        left_layout.addLayout(status_row)
+        self.create_data_recording_group(left_layout)
 
         self.rpv_container = QWidget()
+        self.rpv_container.setFixedHeight(196)
         self.rpv_container.setStyleSheet("background-color: #000; border: 2px solid #555;")
         rpv_layout = QVBoxLayout(self.rpv_container)
         rpv_layout.setContentsMargins(0, 0, 0, 0)
@@ -144,8 +149,8 @@ class MainWindow(QMainWindow):
         if rpv_loaded:
             self.lbl_rpv.setPixmap(
                 rpv_pixmap.scaled(
-                    636,
-                    260,
+                    540,
+                    190,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
@@ -160,30 +165,44 @@ class MainWindow(QMainWindow):
         self.laser_line.setFixedHeight(3)
         self.laser_line.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.laser_line.setStyleSheet("background-color: #330000; border: none;")
-        self.laser_line.setGeometry(10, self._LASER_MIN_Y_PX, 620, 3)
+        self.laser_line.setGeometry(10, self._LASER_MIN_Y_PX, 520, 3)
         self.laser_line.raise_()
 
         left_layout.addWidget(self.rpv_container)
         main_layout.addWidget(left_widget)
 
         self.dashboard = DashboardWidget()
-        main_layout.addWidget(self.dashboard, stretch=2)
+        main_layout.addWidget(self.dashboard, stretch=1)
 
         right_contents = QWidget()
         right_layout = QVBoxLayout(right_contents)
-        right_layout.setContentsMargins(4, 12, 4, 4)
-        right_layout.setSpacing(8)
+        right_layout.setContentsMargins(6, 6, 6, 6)
+        right_layout.setSpacing(10)
+
+        status_row = QHBoxLayout()
+        status_row.setSpacing(8)
+        self.lbl_laser = QLabel("LASERS: OFF")
+        self.lbl_laser.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_laser.setMinimumHeight(54)
+        self.lbl_laser.setStyleSheet(self.STATUS_OFF)
+        self.lbl_valve = QLabel("INJECTION VALVE: OFF")
+        self.lbl_valve.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_valve.setMinimumHeight(54)
+        self.lbl_valve.setStyleSheet(self.STATUS_OFF)
+        status_row.addWidget(self.lbl_laser)
+        status_row.addWidget(self.lbl_valve)
+        right_layout.addLayout(status_row)
+
         self.create_stepper_group(right_layout)
         self.create_flow_group(right_layout)
         self.create_program_group(right_layout)
-        self.create_data_recording_group(right_layout)
         right_layout.addStretch()
         self.create_run_group(right_layout)
 
         right_scroll = QScrollArea()
         right_scroll.setWidget(right_contents)
         right_scroll.setWidgetResizable(True)
-        right_scroll.setFixedWidth(420)
+        right_scroll.setFixedWidth(440)
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         right_scroll.setStyleSheet(
             "QScrollArea { border: none; background-color: #000000; }"
@@ -283,6 +302,9 @@ class MainWindow(QMainWindow):
     def create_stepper_group(self, layout):
         grp = QGroupBox("Stepper Motor Control")
         g = QGridLayout()
+        g.setContentsMargins(12, 12, 12, 12)
+        g.setHorizontalSpacing(8)
+        g.setVerticalSpacing(10)
         self.btn_home = QPushButton("Home (0 mm)")
         self.btn_home.setStyleSheet(self.STYLE_BTN_NORMAL)
         self.btn_home.clicked.connect(self.action_home)
@@ -309,9 +331,14 @@ class MainWindow(QMainWindow):
     def create_flow_group(self, layout):
         grp = QGroupBox("Flow Control")
         v = QVBoxLayout()
+        v.setContentsMargins(10, 10, 10, 10)
+        v.setSpacing(10)
 
         sub_curr = QGroupBox("Current Set Flow")
         cl = QGridLayout()
+        cl.setContentsMargins(10, 10, 10, 10)
+        cl.setHorizontalSpacing(8)
+        cl.setVerticalSpacing(8)
         self.spin_flow_immediate = QSpinBox()
         self.spin_flow_immediate.setRange(0, 3000)
         self.spin_flow_immediate.setValue(0)
@@ -329,6 +356,9 @@ class MainWindow(QMainWindow):
 
         sub_del = QGroupBox("Scheduled Set Flow")
         dl = QGridLayout()
+        dl.setContentsMargins(10, 10, 10, 10)
+        dl.setHorizontalSpacing(8)
+        dl.setVerticalSpacing(8)
         self.spin_flow_delayed = QSpinBox()
         self.spin_flow_delayed.setRange(0, 3000)
         self.spin_flow_delayed.setSuffix(" mL/min")
@@ -355,6 +385,8 @@ class MainWindow(QMainWindow):
     def create_program_group(self, layout):
         grp = QGroupBox("Program Controls")
         v = QVBoxLayout()
+        v.setContentsMargins(12, 12, 12, 12)
+        v.setSpacing(10)
         self.lbl_program_status = QLabel("MCU: idle")
         self.lbl_program_status.setStyleSheet("color: #00FF00; font-size: 9pt;")
         self.lbl_program_status.setWordWrap(True)
@@ -366,15 +398,18 @@ class MainWindow(QMainWindow):
         layout.addWidget(grp)
 
     def create_data_recording_group(self, layout):
-        grp = QGroupBox("Data recording")
+        grp = QGroupBox("Data Recording")
         v = QVBoxLayout()
+        v.setContentsMargins(12, 12, 12, 12)
+        v.setSpacing(8)
         self.lbl_recording = QLabel(
-            "Telemetry is not saved to disk unless you start recording.\n"
-            f"Files go under: {self.programs_dir}"
+            "Telemetry is not saved until recording starts.\n"
+            f"Folder: {self.programs_dir}"
         )
         self.lbl_recording.setStyleSheet("color: #aaaaaa; font-size: 8pt;")
         self.lbl_recording.setWordWrap(True)
         row = QHBoxLayout()
+        row.setSpacing(8)
         self.btn_rec_start = QPushButton("Start recording")
         self.btn_rec_start.setStyleSheet(self.STYLE_GREEN)
         self.btn_rec_start.clicked.connect(self.action_start_recording)
@@ -392,6 +427,8 @@ class MainWindow(QMainWindow):
     def create_run_group(self, layout):
         grp = QGroupBox("Experiment Controls")
         v = QVBoxLayout()
+        v.setContentsMargins(12, 12, 12, 12)
+        v.setSpacing(10)
         self.btn_dynamic = QPushButton("Run Dynamic")
         self.btn_dynamic.setStyleSheet(self.STYLE_GREEN)
         self.btn_dynamic.clicked.connect(self.action_run_dynamic_toggle)
@@ -428,11 +465,22 @@ class MainWindow(QMainWindow):
         if self._recording:
             return
         session_dir = self._telemetry_session.start()
+        self._recording_session_dir = session_dir
+        self._recorded_frame_count = 0
+        self._recording_h5_path = self._start_frame_recording()
         self._recording = True
         self.btn_rec_start.setEnabled(False)
         self.btn_rec_stop.setEnabled(True)
         self.lbl_recording.setText(
             f"Recording…\n{session_dir}\ntelemetry.csv (one row per MCU telemetry sample)"
+        )
+        frame_line = (
+            f"frames: {self._recording_h5_path}"
+            if self._recording_h5_path
+            else "frames: not recording (camera/HDF5 unavailable)"
+        )
+        self.lbl_recording.setText(
+            f"Recording...\n{session_dir}\ntelemetry.csv\n{frame_line}"
         )
         self.lbl_recording.setStyleSheet("color: #2ecc71; font-size: 8pt;")
         print(f"Data recording started: {session_dir}")
@@ -440,7 +488,8 @@ class MainWindow(QMainWindow):
     def action_stop_recording(self):
         if not self._recording:
             return
-        self._telemetry_session.stop(frame_count=0)
+        frame_count = self._stop_frame_recording()
+        self._telemetry_session.stop(frame_count=frame_count)
         self._recording = False
         self.btn_rec_start.setEnabled(True)
         self.btn_rec_stop.setEnabled(False)
@@ -449,7 +498,63 @@ class MainWindow(QMainWindow):
             f"Last / default folder: {self.programs_dir}"
         )
         self.lbl_recording.setStyleSheet("color: #aaaaaa; font-size: 8pt;")
-        print("Data recording stopped.")
+        print(f"Data recording stopped ({frame_count} frames).")
+
+    def _start_frame_recording(self) -> str:
+        if not self.camera_connected:
+            print("Data recording: camera not connected - HDF5 frames disabled.")
+            return ""
+        if not self._telemetry_session.frames_dir:
+            print("Data recording: session folder not ready - HDF5 frames disabled.")
+            return ""
+
+        writer = ScanWriter(
+            self._telemetry_session.frames_dir,
+            frame_h=CAMERA_CAPTURE_HEIGHT,
+            frame_w=CAMERA_CAPTURE_WIDTH,
+        )
+        h5_path = writer.open_session(session_label="camera")
+        if not h5_path:
+            return ""
+
+        capture_thread = CaptureThread(
+            self.camera_manager,
+            writer,
+            get_height_mm=lambda: self.current_motor_mm,
+            get_time_s=self._telemetry_session.elapsed_s,
+        )
+        capture_thread.frame_captured.connect(self._on_frame_captured)
+        capture_thread.error_occurred.connect(self._on_frame_capture_error)
+        capture_thread.start_capture()
+
+        self._scan_writer = writer
+        self._capture_thread = capture_thread
+        return h5_path
+
+    def _stop_frame_recording(self) -> int:
+        if self._capture_thread is not None:
+            self._capture_thread.stop_capture()
+            self._capture_thread = None
+
+        frame_count = self._recorded_frame_count
+        if self._scan_writer is not None:
+            frame_count = self._scan_writer.frame_count
+            self._scan_writer.close_session()
+            self._scan_writer = None
+        return frame_count
+
+    def _on_frame_captured(self, index: int, height_mm: float):
+        self._recorded_frame_count = int(index) + 1
+        if self._recorded_frame_count % 30 != 0:
+            return
+        if self._recording_session_dir:
+            self.lbl_recording.setText(
+                f"Recording...\n{self._recording_session_dir}\n"
+                f"telemetry.csv\nframes: {self._recorded_frame_count} -> {self._recording_h5_path}"
+            )
+
+    def _on_frame_capture_error(self, message: str):
+        print(f"Data recording frame capture error: {message}")
 
     def _handle_telemetry(self, ts, state, flow1, total1, pos):
         flow2 = 0
@@ -563,8 +668,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self._recording:
-            self._telemetry_session.stop(frame_count=0)
-            self._recording = False
+            self.action_stop_recording()
         if self.is_running_dynamic or self.is_running_static:
             self.stop_any_run()
         if hasattr(self, "video_timer"):
