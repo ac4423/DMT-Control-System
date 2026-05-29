@@ -50,4 +50,10 @@ extern uint8_t stepper_cmnd;
 #define GO_HOME                 0x01
 #define SET_MIDDLE              0x02
 #define SET_POSITION            0x03
+#define SET_ZERO                0x04
+#define OSCILLATE_START         0x05
+#define OSCILLATE_STOP          0x06
 extern uint32_t set_pulses;
+extern int32_t oscillate_low_pulses;
+extern int32_t oscillate_high_pulses;
+extern uint16_t oscillate_speed_rpm;

@@ -51,7 +51,7 @@ except ImportError:
 # --- Configuration ---
 UNITS_PER_MM       = 1638.4
 MIN_ENCODER_VAL    = int(10  * UNITS_PER_MM)
-MAX_ENCODER_VAL    = int(140 * UNITS_PER_MM)
+MAX_ENCODER_VAL    = int(225 * UNITS_PER_MM)
 MIDDLE_ENCODER_VAL = int(75  * UNITS_PER_MM)
 
 
@@ -127,6 +127,13 @@ class ZWOCameraManager:
                 CAMERA_BINNING,
                 asi.ASI_IMG_RAW8,
             )
+            start_x, start_y = self._center_roi_start(info)
+            self._camera.set_roi_start_position(start_x, start_y)
+            print(
+                "ZWOCameraManager: ROI "
+                f"{CAMERA_CAPTURE_WIDTH}x{CAMERA_CAPTURE_HEIGHT} "
+                f"at x={start_x}, y={start_y}"
+            )
 
             self._camera.start_video_capture()
             self._connected = True
@@ -137,6 +144,22 @@ class ZWOCameraManager:
             self._camera    = None
             self._connected = False
             return False
+
+    @staticmethod
+    def _center_roi_start(camera_info: dict) -> tuple[int, int]:
+        sensor_w = int(camera_info.get("MaxWidth", CAMERA_CAPTURE_WIDTH))
+        sensor_h = int(camera_info.get("MaxHeight", CAMERA_CAPTURE_HEIGHT))
+        roi_w = min(CAMERA_CAPTURE_WIDTH, sensor_w)
+        roi_h = min(CAMERA_CAPTURE_HEIGHT, sensor_h)
+
+        start_x = max(0, (sensor_w - roi_w) // 2)
+        start_y = max(0, (sensor_h - roi_h) // 2)
+
+        return ZWOCameraManager._align_roi_start(start_x), ZWOCameraManager._align_roi_start(start_y)
+
+    @staticmethod
+    def _align_roi_start(value: int) -> int:
+        return int(value) & ~1
 
     def get_frame(self):
         """

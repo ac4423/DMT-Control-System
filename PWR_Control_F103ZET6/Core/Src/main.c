@@ -132,18 +132,7 @@ int main(void)
 	flags_init();
 	
 	#if !SKIP_STARTUP_SEQUENCE // in config.h
-	
-		goHome(0x03);
-	
-		while (1) {
-			uint8_t result = readGoHomeFinishAck();
-			if (result == 1) { // 1 = Success
-					break; 
-			}
-			HAL_Delay(10);
-		}
-		
-		HAL_Delay(5000);
+
 		setZero(0x03);
 		
 		while (1) {

@@ -41,10 +41,10 @@ void RunStartupSequence(void) {
 
     switch (startup_step) {
         case 0:
-            goHome(0x03);
+            setZero(0x03);
             step_timer_tick = now;
             motor_status_poll_tick = now;
-            startup_step = 1;
+            startup_step = 3;
             break;
         case 1:
             if (readGoHomeFinishAck() == 1) {

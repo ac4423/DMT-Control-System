@@ -39,9 +39,12 @@ BAUD_RATE = 256000
 
 # --- Protocol / legacy message IDs ---
 HEADER_BYTE      = 0xA5
+MSG_SET_ZERO     = 0x40
 MSG_GO_HOME      = 0x41
 MSG_SET_MIDDLE   = 0x42
 MSG_POSITION_MODE2 = 0x43  # Move-to absolute (steps)
+MSG_STEPPER_OSCILLATE_START = 0x44
+MSG_STEPPER_OSCILLATE_STOP = 0x45
 DEFAULT_HANDSHAKE_HEARTBEAT_MS = 500
 DEFAULT_HANDSHAKE_TELEMETRY_MS = 200
 STEPPER_COMMAND_SCALE_CORRECTION = 30.0
@@ -444,6 +447,24 @@ class CommsManager(QObject):
         self._send_raw(MSG_GO_HOME, payload)
         print("CommsManager: Command Sent (legacy): GO HOME")
 
+    def send_set_zero(self, slave_addr=0x03):
+        self._enqueue_tx("SET ZERO", self._send_set_zero_now, slave_addr)
+
+    def _send_set_zero_now(self, slave_addr=0x03):
+        if self.camera_only:
+            print("CommsManager: camera-only - SET ZERO ignored")
+            return
+        if self.mcu and hasattr(self.mcu, "send_stepper_set_zero"):
+            try:
+                self.mcu.send_stepper_set_zero(int(slave_addr) & 0xFF)
+                print("CommsManager: Command Sent via MCUComm: SET ZERO")
+                return
+            except Exception as e:
+                print("CommsManager: MCUComm send_stepper_set_zero error:", e)
+        payload = struct.pack('B', int(slave_addr) & 0xFF)
+        self._send_raw(MSG_SET_ZERO, payload)
+        print("CommsManager: Command Sent (legacy): SET ZERO")
+
     def send_set_middle(self):
         self._enqueue_tx("SET MIDDLE", self._send_set_middle_now)
 
@@ -523,13 +544,21 @@ class CommsManager(QObject):
         if self.camera_only:
             print("CommsManager: camera-only - OSCILLATE START ignored")
             return
+        low_steps = self.mm_to_steps(low_mm)
+        high_steps = self.mm_to_steps(high_mm)
+        speed_rpm = 150
         if self.mcu and hasattr(self.mcu, "send_stepper_oscillate_start"):
             try:
-                self.mcu.send_stepper_oscillate_start(float(low_mm), float(high_mm))
+                self.mcu.send_stepper_oscillate_start(low_steps, high_steps, speed_rpm)
                 return
             except Exception as e:
                 print("CommsManager: MCUComm oscillate start error:", e)
-        print(f"CommsManager: oscillate start requested ({low_mm:.1f}-{high_mm:.1f} mm)")
+        payload = struct.pack('<iiH', int(low_steps), int(high_steps), int(speed_rpm))
+        self._send_raw(MSG_STEPPER_OSCILLATE_START, payload)
+        print(
+            f"CommsManager: oscillate start requested "
+            f"({low_mm:.1f}-{high_mm:.1f} mm, {speed_rpm} rpm)"
+        )
 
     def send_stepper_oscillate_stop(self):
         self._enqueue_tx("OSCILLATE STOP", self._send_stepper_oscillate_stop_now)
@@ -543,6 +572,7 @@ class CommsManager(QObject):
                 return
             except Exception as e:
                 print("CommsManager: MCUComm oscillate stop error:", e)
+        self._send_raw(MSG_STEPPER_OSCILLATE_STOP, b"")
         print("CommsManager: oscillate stop requested")
 
     def send_set_pump_pwm(self, duty: int):
@@ -559,7 +589,7 @@ class CommsManager(QObject):
                 return
             except Exception as e:
                 print("CommsManager: MCUComm pump PWM error:", e)
-        self._send_raw(0x44, struct.pack("B", duty))
+        self._send_raw(0x30, struct.pack("B", duty))
 
     def close(self):
         self._tx_running = False

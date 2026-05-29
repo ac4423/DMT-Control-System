@@ -31,9 +31,12 @@
 #define MSG_DESIRED_FLOW_IMMEDIATE 0x21
 #define MSG_DEBUG_FLOW_PULSE_COUNT 0x30
 #define MSG_FLOWMETER_PULSE_DEBUG 0x32  /* new message: [ts:u32][state:u8][pulse_total:u32] */
+#define MSG_SET_ZERO             0x40
 #define MSG_GO_HOME             0x41
 #define MSG_SET_MIDDLE          0x42
 #define MSG_POSITION_MODE2      0x43
+#define MSG_STEPPER_OSCILLATE_START 0x44
+#define MSG_STEPPER_OSCILLATE_STOP  0x45
 
 /* New debug function codes */
 #define MSG_SET_PUMP_PWM        0x30  /* payload: [duty:1byte] -> forces SYS_DEBUG if accepted */
@@ -71,6 +74,9 @@ static inline uint32_t read_u32_le(const uint8_t *buf) {
 
 uint8_t stepper_cmnd = 0;
 uint32_t set_pulses = 0;
+int32_t oscillate_low_pulses = 8192;
+int32_t oscillate_high_pulses = 12288;
+uint16_t oscillate_speed_rpm = 150;
 
 /* ---------------- TLV config parser (preserve exactly original tags & effects) ---------------- */
 
@@ -222,10 +228,18 @@ bool Comms_ApplyConfigTLV(const uint8_t *payload, uint8_t len) {
                     if (config_cb) config_cb(tag, &payload[idx], tlen);
                 }
                 break;
-            case MSG_GO_HOME:
+            case MSG_SET_ZERO:
                 /* Payload: None
-                   Action: Hardcoded goHome for slave 0x03 */
-                stepper_cmnd = GO_HOME;
+                   Action: Hardcoded setZero for slave 0x03 */
+                stepper_cmnd = SET_ZERO;
+
+                any_applied = true;
+                if (config_cb) config_cb(tag, &payload[idx], tlen);
+                break;
+
+            case MSG_GO_HOME:
+                /* Legacy compatibility: treat old go-home requests as set-zero. */
+                stepper_cmnd = SET_ZERO;
 
                 any_applied = true;
                 if (config_cb) config_cb(tag, &payload[idx], tlen);
@@ -257,6 +271,31 @@ bool Comms_ApplyConfigTLV(const uint8_t *payload, uint8_t len) {
                     any_applied = true;
                     if (config_cb) config_cb(tag, &payload[idx], tlen);
                 }
+                break;
+            case MSG_STEPPER_OSCILLATE_START:
+                if (tlen >= 8) {
+                    oscillate_low_pulses = (int32_t)read_u32_le(&payload[idx]);
+                    oscillate_high_pulses = (int32_t)read_u32_le(&payload[idx + 4]);
+                } else {
+                    oscillate_low_pulses = 8192;
+                    oscillate_high_pulses = 12288;
+                }
+                if (tlen >= 10) {
+                    oscillate_speed_rpm = (uint16_t)payload[idx + 8] |
+                                          ((uint16_t)payload[idx + 9] << 8);
+                } else {
+                    oscillate_speed_rpm = 150;
+                }
+                stepper_cmnd = OSCILLATE_START;
+
+                any_applied = true;
+                if (config_cb) config_cb(tag, &payload[idx], tlen);
+                break;
+            case MSG_STEPPER_OSCILLATE_STOP:
+                stepper_cmnd = OSCILLATE_STOP;
+
+                any_applied = true;
+                if (config_cb) config_cb(tag, &payload[idx], tlen);
                 break;
             default:
                 /* unknown tag -> ignore */
@@ -490,8 +529,13 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
             }
             break;
 
+        case MSG_SET_ZERO:
+            stepper_cmnd = SET_ZERO;
+            if (send_ack_and_nack_packets) Comms_SendAck(seq);
+            break;
+
         case MSG_GO_HOME:
-            stepper_cmnd = GO_HOME;
+            stepper_cmnd = SET_ZERO;
             if (send_ack_and_nack_packets) Comms_SendAck(seq);
             break;
 
@@ -511,6 +555,35 @@ static void Comms_OnPacket(uint8_t type, uint8_t seq, const uint8_t *payload, ui
             {
                 if (send_ack_and_nack_packets) Comms_SendNack(seq);
             }
+            break;
+
+        case MSG_STEPPER_OSCILLATE_START:
+            if (len >= 8)
+            {
+                oscillate_low_pulses = (int32_t)read_u32_le(&payload[0]);
+                oscillate_high_pulses = (int32_t)read_u32_le(&payload[4]);
+            }
+            else
+            {
+                oscillate_low_pulses = 8192;
+                oscillate_high_pulses = 12288;
+            }
+            if (len >= 10)
+            {
+                oscillate_speed_rpm = (uint16_t)payload[8] |
+                                      ((uint16_t)payload[9] << 8);
+            }
+            else
+            {
+                oscillate_speed_rpm = 150;
+            }
+            stepper_cmnd = OSCILLATE_START;
+            if (send_ack_and_nack_packets) Comms_SendAck(seq);
+            break;
+
+        case MSG_STEPPER_OSCILLATE_STOP:
+            stepper_cmnd = OSCILLATE_STOP;
+            if (send_ack_and_nack_packets) Comms_SendAck(seq);
             break;
 
         default:

@@ -29,11 +29,8 @@ from Control_GUI.hardware import (
     CAMERA_CAPTURE_HEIGHT,
     CAMERA_CAPTURE_WIDTH,
     CaptureThread,
-    MAX_ENCODER_VAL,
-    MIN_ENCODER_VAL,
     ProgramSession,
     ScanWriter,
-    UNITS_PER_MM,
     ZWOCameraManager,
 )
 
@@ -54,7 +51,7 @@ class MainWindow(QMainWindow):
 
     _LASER_MIN_Y_PX = 178
     _LASER_MAX_Y_PX = 8
-    _LASER_MAX_MM = 150.0
+    _LASER_MAX_MM = 225.0
 
     def __init__(self, comms_port: str | None = None):
         super().__init__()
@@ -305,14 +302,14 @@ class MainWindow(QMainWindow):
         g.setContentsMargins(12, 12, 12, 12)
         g.setHorizontalSpacing(8)
         g.setVerticalSpacing(10)
-        self.btn_home = QPushButton("Home (0 mm)")
+        self.btn_home = QPushButton("Set 0")
         self.btn_home.setStyleSheet(self.STYLE_BTN_NORMAL)
-        self.btn_home.clicked.connect(self.action_home)
+        self.btn_home.clicked.connect(self.action_set_zero)
         self.btn_middle = QPushButton("Middle (75 mm)")
         self.btn_middle.setStyleSheet(self.STYLE_BTN_NORMAL)
         self.btn_middle.clicked.connect(self.action_middle)
         self.spin_target = QDoubleSpinBox()
-        self.spin_target.setRange(0.0, 150.0)
+        self.spin_target.setRange(0.0, 225.0)
         self.spin_target.setDecimals(1)
         self.spin_target.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.btn_set_pos = QPushButton("Set")
@@ -594,10 +591,10 @@ class MainWindow(QMainWindow):
     def _comms_ok(self):
         return bool(getattr(self.comms, "mcu", None) or getattr(self.comms, "_ser", None))
 
-    def action_home(self):
+    def action_set_zero(self):
         self.stop_any_run()
         if self._comms_ok():
-            self.comms.send_go_home(slave_addr=0x03)
+            self.comms.send_set_zero(slave_addr=0x03)
 
     def action_middle(self):
         self.stop_any_run()
@@ -628,9 +625,7 @@ class MainWindow(QMainWindow):
         if not self.is_running_dynamic:
             self.is_running_dynamic = True
             if self._comms_ok():
-                low_mm = MIN_ENCODER_VAL / UNITS_PER_MM
-                high_mm = MAX_ENCODER_VAL / UNITS_PER_MM
-                self.comms.send_stepper_oscillate_start(low_mm=low_mm, high_mm=high_mm)
+                self.comms.send_stepper_oscillate_start(low_mm=150.0, high_mm=225.0)
             self.btn_dynamic.setText("Stop Dynamic")
             self.btn_dynamic.setStyleSheet(self.STYLE_RED)
             self.btn_static.setEnabled(False)

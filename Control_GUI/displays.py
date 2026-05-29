@@ -69,7 +69,7 @@ class DashboardWidget(QWidget):
         self.p_motor.setTitle("Motor Height")
         self.p_motor.setLabel("left", "Height", units="mm")
         self.p_motor.setLabel("bottom", "Time", units="s")
-        self.p_motor.setYRange(0, 150)
+        self.p_motor.setYRange(0, 250)
         self.curve_motor = self.p_motor.plot(pen=pg.mkPen((0, 255, 255), width=2))
         h_motor.addWidget(self.lbl_motor)
         h_motor.addWidget(self.w_motor, stretch=1)

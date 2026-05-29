@@ -42,9 +42,12 @@ MSG_EXIT_SYS_DEBUG = 0x31   # payload: none
 MSG_FLOWMETER_PULSE_DEBUG = 0x32  # payload: [ts: u32][state: u8][pulse_total: u32]
 
 # Stepper motor (PC → MCU)
+MSG_SET_ZERO       = 0x40
 MSG_GO_HOME        = 0x41
 MSG_SET_MIDDLE     = 0x42
 MSG_POSITION_MODE2 = 0x43   # Move to absolute position (steps)
+MSG_STEPPER_OSCILLATE_START = 0x44
+MSG_STEPPER_OSCILLATE_STOP  = 0x45
 
 
 # ── CRC and framing helpers ───────────────────────────────────────────────────

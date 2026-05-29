@@ -61,9 +61,12 @@ from .protocol import (
     MSG_FLOWMETER_PULSE_DEBUG,
 
     # Stepper motor
+    MSG_SET_ZERO,
     MSG_GO_HOME,
     MSG_SET_MIDDLE,
     MSG_POSITION_MODE2,
+    MSG_STEPPER_OSCILLATE_START,
+    MSG_STEPPER_OSCILLATE_STOP,
 )
 
 logger = logging.getLogger(__name__)
@@ -333,6 +336,12 @@ class MCUComm:
             raise ValueError("slave_addr out of range 0..0xFF")
         return self.send_frame(MSG_GO_HOME, bytes([slave_addr & 0xFF]))
 
+    def send_stepper_set_zero(self, slave_addr: int = 0x03) -> int:
+        """Set the stepper's current position as zero. Returns sequence number."""
+        if not (0 <= slave_addr <= 0xFF):
+            raise ValueError("slave_addr out of range 0..0xFF")
+        return self.send_frame(MSG_SET_ZERO, bytes([slave_addr & 0xFF]))
+
     def send_stepper_set_middle(self) -> int:
         """Instruct the stepper to move to the predefined middle position."""
         return self.send_frame(MSG_SET_MIDDLE, b"")
@@ -348,6 +357,20 @@ class MCUComm:
         """
         payload = struct.pack('<i', int(steps))
         return self.send_frame(MSG_POSITION_MODE2, payload)
+
+    def send_stepper_oscillate_start(
+        self,
+        low_steps: int,
+        high_steps: int,
+        speed_rpm: int = 150,
+    ) -> int:
+        """Start MCU-side stepper oscillation between two absolute positions."""
+        payload = struct.pack('<iiH', int(low_steps), int(high_steps), int(speed_rpm) & 0xFFFF)
+        return self.send_frame(MSG_STEPPER_OSCILLATE_START, payload)
+
+    def send_stepper_oscillate_stop(self) -> int:
+        """Stop MCU-side stepper oscillation."""
+        return self.send_frame(MSG_STEPPER_OSCILLATE_STOP, b"")
 
     # ── Development / emulation helpers ──────────────────────────────────
 
